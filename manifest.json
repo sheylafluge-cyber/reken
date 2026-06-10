@@ -1,6 +1,6 @@
 {
-  "name": "Rekan Events",
-  "short_name": "Rekan",
+  "name": "Reken Events",
+  "short_name": "Reken",
   "description": "Gestión de Personal para Eventos",
   "start_url": "./index.html",
   "display": "standalone",

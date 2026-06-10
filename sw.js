@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rekan-events-v1';
+const CACHE_NAME = 'reken-events-v1';
 const ASSETS = [
   './',
   './index.html',
