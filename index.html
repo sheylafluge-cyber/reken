@@ -1,0 +1,1907 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rekan Events - Gestión de Personal</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f5f7f9;
+      --bg2: #ffffff;
+      --bg3: #f0f2f5;
+      --border: rgba(0,0,0,0.06);
+      --border2: rgba(0,0,0,0.1);
+      --text: #1a1c23;
+      --text2: #5a5f73;
+      --text3: #9ea3b0;
+      --accent: #ff3399; /* Rosa del logo */
+      --accent2: #e62e8a;
+      --accent-bg: rgba(255, 51, 153, 0.08);
+      --success: #2ecc71;
+      --success-bg: rgba(46,204,113,0.1);
+      --warn: #f39c12;
+      --warn-bg: rgba(243,156,18,0.1);
+      --danger: #e74c3c;
+      --danger-bg: rgba(231,76,60,0.1);
+      --radius: 10px;
+      --radius-lg: 16px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+    #root { min-height: 100vh; }
+
+    /* AUTH & SETUP */
+    .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; background: var(--bg3); }
+    .auth-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2.5rem; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+    .auth-logo { text-align: center; margin-bottom: 2rem; }
+    .auth-logo .logo-img { width: 100%; max-width: 280px; height: auto; margin-bottom: 12px; }
+    .auth-logo h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; display: none; }
+    .auth-logo p { color: var(--text2); font-size: 14px; margin-top: 4px; }
+    
+    /* TABS */
+    .tabs { display: flex; gap: 4px; background: var(--bg3); border-radius: var(--radius); padding: 4px; margin-bottom: 1.5rem; }
+    .tab { flex: 1; padding: 8px; border: none; border-radius: 7px; font-size: 14px; cursor: pointer; background: transparent; color: var(--text2); transition: all .2s; }
+    .tab.active { background: var(--accent); color: #fff; font-weight: 500; }
+
+    /* FORMS */
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 6px; font-weight: 500; }
+    input, select, textarea { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; font-size: 14px; color: var(--text); outline: none; transition: border-color .2s; font-family: inherit; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    input[type="date"] { color-scheme: light; }
+    .btn { padding: 10px 18px; border-radius: var(--radius); border: none; font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: all .2s; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: #fff; color: var(--text); border: 1px solid var(--border2); }
+    .btn-secondary:hover { background: var(--bg3); }
+    .btn-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid rgba(231,76,60,0.2); }
+    .btn-full { width: 100%; justify-content: center; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* LAYOUT */
+    .app-layout { display: flex; min-height: 100vh; }
+    .sidebar { width: 260px; background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+    .sidebar-header { padding: 1.25rem; border-bottom: 1px solid var(--border); }
+    .sidebar-logo { display: flex; align-items: center; justify-content: center; width: 100%; }
+    .sidebar-logo img { width: 100%; height: auto; max-height: 120px; object-fit: contain; }
+    .sidebar-nav { flex: 1; padding: 1rem 0.75rem; }
+    .nav-section { font-size: 10px; text-transform: uppercase; color: var(--text3); padding: 0.5rem; margin-top: 1rem; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius); color: var(--text2); font-size: 14px; cursor: pointer; border: none; background: transparent; width: 100%; text-align: left; }
+    .nav-item:hover { background: var(--bg3); color: var(--text); }
+    .nav-item.active { background: var(--accent-bg); color: var(--accent2); font-weight: 500; }
+    .sidebar-footer { padding: 1rem; border-top: 1px solid var(--border); }
+    
+    .main-content { margin-left: 260px; flex: 1; padding: 2rem; }
+    .page-header { margin-bottom: 2rem; }
+    .page-header h1 { font-size: 24px; font-weight: 600; }
+
+    /* CARDS */
+    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+    .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; }
+    .stat-label { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+    .stat-value { font-size: 28px; font-weight: 600; }
+
+    /* CALENDAR */
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal-day-name { text-align: center; font-size: 11px; color: var(--text3); font-weight: 600; padding: 6px 0; }
+    .cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all .15s; border: 1px solid transparent; }
+    .cal-day:hover { background: var(--bg3); }
+    .cal-day.today { border-color: var(--accent); color: var(--accent2); font-weight: 600; }
+    .cal-day.unavailable { background: var(--danger-bg); color: var(--danger); border-color: rgba(231,76,60,0.2); }
+    .cal-day.past { opacity: .35; cursor: not-allowed; }
+
+    /* ESTILOS CALENDARIO GENERAL */
+    .gen-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+    .gen-cal-day { min-height: 120px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+    .gen-cal-day.today { border-color: var(--accent); }
+    .gen-cal-day-num { font-size: 14px; font-weight: 600; margin-bottom: 4px; color: var(--text2); }
+    .emp-tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .emp-tag.avail { background: var(--success-bg); color: var(--success); }
+    .emp-tag.unavail { background: var(--danger-bg); color: var(--danger); text-decoration: line-through; opacity: 0.7; }
+    .event-tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--accent); color: #fff; margin-top: 4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; border: none; width: 100%; text-align: left; }
+    .event-tag:hover { background: var(--accent2); }
+
+    /* DROPZONE STYLES */
+    .dropzone { border: 2px dashed var(--border2); border-radius: var(--radius); padding: 15px; text-align: center; transition: all .2s; cursor: pointer; }
+    .dropzone:hover, .dropzone.dragging { border-color: var(--accent); background: var(--accent-bg); }
+    .dropzone i { font-size: 20px; color: var(--text3); margin-bottom: 8px; display: block; }
+    .dropzone span { font-size: 11px; color: var(--text2); }
+
+    /* ALERTS */
+    .alert { padding: 12px 16px; border-radius: var(--radius); font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; border: 1px solid transparent; }
+    .alert-danger { background: var(--danger-bg); border-color: rgba(231,76,60,0.2); color: #e88; }
+    .alert-warn { background: var(--warn-bg); border-color: rgba(243,156,18,0.2); color: #f5be7a; }
+    .alert-success { background: var(--success-bg); border-color: rgba(46,204,113,0.2); color: #7be3aa; }
+
+    /* TOAST */
+    .toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 16px; border-radius: var(--radius); font-size: 14px; border: 1px solid; animation: slideIn .3s; }
+    @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; backdrop-filter: blur(4px); }
+    .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+    .modal-header { padding: 1.5rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+    .modal-body { padding: 1.5rem; }
+
+    .doc-status { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--radius); font-size: 12px; font-weight: 600; }
+    .doc-status.ok { background: var(--success-bg); color: var(--success); }
+    .doc-status.warn { background: var(--warn-bg); color: var(--warn); }
+    .doc-status.expired { background: var(--danger-bg); color: var(--danger); }
+    .cat-badge { font-size: 9px; padding: 2px 5px; border-radius: 4px; background: var(--bg3); color: var(--text2); border: 1px solid var(--border); margin-left: 4px; display: inline-block; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+// Categorías de documentos compartidas
+const DOC_CATEGORIES = [
+  { k: 'prl_art19', l: 'PRL Art. 19', dateField: 'prl_art19_fecha' },
+  { k: 'prl_60h', l: 'PRL 60h Altura', dateField: 'prl_60h_fecha' },
+  { k: 'carretilla', l: 'Carretilla', dateField: 'carretilla_fecha' },
+  { k: 'reconocimiento', l: 'Reconocimiento Médico', dateField: 'reconocimiento_fecha' },
+  { k: 'dni', l: 'DNI', isPersonal: true },
+  { k: 'tarjeta_sanitaria', l: 'Tarjeta Sanitaria', isPersonal: true }
+];
+
+// ─── CONFIGURACIÓN DE SUPABASE (AUTOMATIZADA) ──────────────────────────────
+const getSBConfig = () => {
+  const config = {
+    url: localStorage.getItem('sb_url') || 'https://ugdogvvuipsutovqpyhj.supabase.co',
+    key: localStorage.getItem('sb_key') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnZG9ndnZ1aXBzdXRvdnFweWhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5OTMxNzMsImV4cCI6MjA5NjU2OTE3M30.DSWmKQnGqbowcmOHozkh-oiUQGzXNmvYpK7ThEJCXBU'
+  };
+  return config;
+};
+
+let supabaseClient = null;
+function initSupabase() {
+  const { url, key } = getSBConfig();
+  console.log('Inicializando Supabase...');
+  console.log('URL:', url);
+  console.log('window.supabase:', window.supabase);
+  if (url && key) {
+    try {
+      // Usamos el objeto global 'supabase' que proporciona la librería del CDN
+      if (window.supabase && window.supabase.createClient) {
+        supabaseClient = window.supabase.createClient(url, key);
+        console.log('Cliente Supabase creado con éxito');
+      } else if (typeof supabase !== 'undefined' && supabase.createClient) {
+        supabaseClient = supabase.createClient(url, key);
+        console.log('Cliente Supabase creado con éxito (vía variable global)');
+      } else {
+        console.error("La librería de Supabase no se ha cargado correctamente.");
+      }
+    } catch (e) {
+      console.error("Error inicializando Supabase:", e);
+    }
+  }
+  return supabaseClient;
+}
+
+// ─── UTILIDADES ─────────────────────────────────────────────────────────────
+const formatDate = (d) => {
+  if (!d) return '—';
+  const [y, m, day] = d.split('-');
+  return `${day}/${m}/${y}`;
+};
+
+const getDocStatus = (dateStr) => {
+  if (!dateStr) return { status: 'neutral', label: 'Sin fecha', class: '' };
+  const d = new Date(dateStr);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const diffDays = Math.floor((d - today) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return { status: 'expired', label: 'CADUCADO', class: 'expired' };
+  if (diffDays <= 30) return { status: 'warn', label: `CADUCA EN ${diffDays}D`, class: 'warn' };
+  return { status: 'ok', label: 'AL DÍA', class: 'ok' };
+};
+
+// ─── COMPONENTES ────────────────────────────────────────────────────────────
+
+function SetupPage({ onComplete }) {
+  const [url, setUrl] = useState(getSBConfig().url);
+  const [key, setKey] = useState(getSBConfig().key);
+  const [error, setError] = useState('');
+
+  const save = () => {
+    if (url.includes('icrfwborcbfsmyzsnhnw')) {
+      setError('Esa URL NO es válida. Es la que daba error antes. Debes usar la de TU proyecto de Supabase.');
+      return;
+    }
+    localStorage.setItem('sb_url', url.trim());
+    localStorage.setItem('sb_key', key.trim());
+    initSupabase();
+    onComplete();
+  };
+  return (
+  <div className="auth-wrap">
+    <div className="auth-card" style={{maxWidth: 500}}>
+      <div className="auth-logo">
+        <img src="WhatsApp Image 2026-06-10 at 11.42.25.jpeg" className="logo-img" alt="Rekan Events" />
+        <h1>Configuración</h1>
+        <p>Pega tus credenciales de Supabase</p>
+      </div>
+        {error && <div className="alert alert-danger" style={{marginBottom: 15}}><i className="fa-solid fa-circle-xmark"></i> {error}</div>}
+        <div className="form-group">
+          <label>Project URL</label>
+          <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://xxx.supabase.co" />
+        </div>
+        <div className="form-group">
+          <label>Anon Public Key</label>
+          <input value={key} onChange={e=>setKey(e.target.value)} placeholder="eyJhbGciOiJIUz..." />
+        </div>
+        <button className="btn btn-primary btn-full" onClick={save} disabled={!url || !key}>Conectar</button>
+      </div>
+    </div>
+  );
+}
+
+function AuthPage({ toast, onBypass }) {
+  const [username, setUsername] = useState('');
+  const [pass, setPass] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const login = async (e) => {
+    if (e) e.preventDefault();
+    setError('');
+    setLoading(true);
+    const cleanUser = username.trim().toLowerCase();
+    const cleanPass = pass.trim();
+
+    // 1. LLAVE MAESTRA PARA SHEILA
+    if (cleanUser === 'sheila' && cleanPass === '123456') {
+      const masterId = '00000000-0000-0000-0000-000000000000';
+      const adminData = { id: masterId, nombre: 'Sheyla Admin', email: 'sheila@admin.com', role: 'admin' };
+      onBypass({ id: masterId }, adminData);
+      setLoading(false);
+      return;
+    }
+
+    // 2. Login manual buscando en la tabla 'profiles'
+    try {
+      const { data, error: sbError } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('username', cleanUser)
+        .eq('password_manual', cleanPass)
+        .single();
+
+      if (sbError || !data) {
+        setError('Usuario o contraseña incorrectos');
+      } else {
+        onBypass({ id: data.id }, data);
+      }
+    } catch (err) {
+      setError('Error de conexión con el servidor');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="auth-wrap">
+      <div className="auth-card">
+        <div className="auth-logo">
+          <img src="WhatsApp Image 2026-06-10 at 11.42.25.jpeg" className="logo-img" alt="Rekan Events" />
+        </div>
+        
+        {error && (
+          <div className="alert alert-danger" style={{fontSize: 12, marginBottom: 20, padding: '10px 12px'}}>
+            <i className="fa-solid fa-circle-xmark"></i> {error}
+          </div>
+        )}
+
+        <form onSubmit={login}>
+          <div className="form-group">
+            <label>Usuario</label>
+            <input 
+              value={username} 
+              onChange={e=>setUsername(e.target.value)} 
+              placeholder="Ej: sheila" 
+              autoFocus
+            />
+          </div>
+          <div className="form-group">
+            <label>Contraseña</label>
+            <input 
+              type="password" 
+              value={pass} 
+              onChange={e=>setPass(e.target.value)} 
+            />
+          </div>
+          <button type="submit" className="btn btn-primary btn-full" disabled={loading || !username || !pass}>
+            {loading ? 'Cargando...' : 'Entrar'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function CalendarView({ userId, isAdmin, toast }) {
+  const [days, setDays] = useState([]);
+  const today = new Date();
+  const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+
+  const load = useCallback(async () => {
+    const start = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).toISOString().split('T')[0];
+    const end = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).toISOString().split('T')[0];
+    const { data } = await supabaseClient.from('unavailable_days').select('fecha').eq('user_id', userId).gte('fecha', start).lte('fecha', end);
+    setDays((data||[]).map(d => d.fecha));
+  }, [userId, viewDate]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const toggle = async (dateStr) => {
+    if (isAdmin) return;
+    if (new Date(dateStr) < new Date().setHours(0,0,0,0)) return;
+    if (days.includes(dateStr)) {
+      await supabaseClient.from('unavailable_days').delete().eq('user_id', userId).eq('fecha', dateStr);
+      setDays(p => p.filter(d => d !== dateStr));
+    } else {
+      await supabaseClient.from('unavailable_days').insert({ user_id: userId, fecha: dateStr });
+      setDays(p => [...p, dateStr]);
+    }
+  };
+
+  const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
+  const firstDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
+  const offset = (firstDay + 6) % 7;
+
+  return (
+    <div className="card">
+      <div style={{display:'flex', justifyContent:'space-between', marginBottom: 15, alignItems:'center'}}>
+        <h3 style={{fontSize: 16}}>{viewDate.toLocaleString('es', { month: 'long', year: 'numeric' }).toUpperCase()}</h3>
+        <div style={{display:'flex', gap: 5}}>
+          <button className="btn btn-secondary" onClick={()=>setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1))}><i className="fa-solid fa-chevron-left"></i></button>
+          <button className="btn btn-secondary" onClick={()=>setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1))}><i className="fa-solid fa-chevron-right"></i></button>
+        </div>
+      </div>
+      <div className="cal-grid">
+        {['L','M','X','J','V','S','D'].map(d => <div key={d} className="cal-day-name">{d}</div>)}
+        {Array(offset).fill(0).map((_,i) => <div key={i}></div>)}
+        {Array(daysInMonth).fill(0).map((_,i) => {
+          const d = i + 1;
+          const dateStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          const isToday = dateStr === new Date().toISOString().split('T')[0];
+          const isUnavail = days.includes(dateStr);
+          return (
+            <div key={d} className={`cal-day ${isToday?'today':''} ${isUnavail?'unavailable':''}`} onClick={()=>toggle(dateStr)}>
+              {d}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, currentUser }) {
+  const [form, setForm] = useState({...profile});
+  const [docsList, setDocsList] = useState([]);
+  const [uploading, setUploading] = useState(null);
+
+  const loadDocs = useCallback(async () => {
+    const { data } = await supabaseClient.from('documentos').select('*').eq('profile_id', profile.id);
+    setDocsList(data || []);
+  }, [profile.id]);
+
+  useEffect(() => { loadDocs(); }, [loadDocs]);
+
+  const handleUpload = async (files, category) => {
+    if (!files || files.length === 0) return;
+    
+    setUploading(category);
+    
+    for (const file of files) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${profile.id}_${category}_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      
+      const { error: uploadError } = await supabaseClient.storage
+        .from('documentos')
+        .upload(fileName, file);
+
+      if (uploadError) {
+        console.error('Error subiendo:', file.name, uploadError);
+      } else {
+        const { data: { publicUrl } } = supabaseClient.storage
+          .from('documentos')
+          .getPublicUrl(fileName);
+        
+        await supabaseClient.from('documentos').insert({
+          profile_id: profile.id,
+          categoria: category,
+          nombre_archivo: file.name,
+          url: publicUrl,
+          storage_path: fileName
+        });
+
+        // Notificar a admins si un empleado sube un archivo
+        if (currentUser && currentUser.role !== 'admin') {
+          const catLabel = DOC_CATEGORIES.find(c => c.k === category)?.l || category;
+          sendNotification(null, 'Nuevo archivo subido', `${currentUser.nombre} ha subido: ${file.name} (${catLabel})`, 'doc_upload', true);
+        }
+      }
+    }
+    
+    loadDocs();
+    setUploading(null);
+  };
+
+  const deleteDoc = async (doc) => {
+    if (!confirm('¿Seguro que quieres eliminar este archivo?')) return;
+    const { error } = await supabaseClient.storage.from('documentos').remove([doc.storage_path]);
+    if (!error) {
+      await supabaseClient.from('documentos').delete().eq('id', doc.id);
+      
+      // Notificar a admins si un empleado elimina un archivo
+      if (currentUser && currentUser.role !== 'admin') {
+        const catLabel = DOC_CATEGORIES.find(c => c.k === doc.categoria)?.l || doc.categoria;
+        sendNotification(null, 'Archivo eliminado', `${currentUser.nombre} ha eliminado el archivo: ${doc.nombre_archivo} (${catLabel})`, 'doc_delete', true);
+      }
+      
+      loadDocs();
+    }
+  };
+
+  const save = async () => {
+    // Detectar cambios exactos
+    const changes = [];
+    const fields = {
+      nombre: 'Nombre', apellidos: 'Apellidos', username: 'Usuario',
+      dni: 'DNI', tarjeta_sanitaria: 'Tarjeta Sanitaria', ccc: 'CCC',
+      telefono: 'Teléfono', prl_art19_fecha: 'Fecha PRL Art. 19',
+      prl_60h_fecha: 'Fecha PRL 60h', carretilla_fecha: 'Fecha Carretilla',
+      reconocimiento_fecha: 'Fecha Reconocimiento'
+    };
+
+    Object.keys(fields).forEach(key => {
+      if (form[key] !== profile[key]) {
+        changes.push(fields[key]);
+      }
+    });
+
+    const { error } = await supabaseClient.from('profiles').update(form).eq('id', profile.id);
+    if (!error) {
+      // Notificar a admins si un empleado cambia sus datos
+      if (currentUser && currentUser.role !== 'admin') {
+        let msg = `${currentUser.nombre} ha actualizado su ficha personal.`;
+        if (changes.length > 0) {
+          msg = `${currentUser.nombre} ha modificado: ${changes.join(', ')}.`;
+        }
+        sendNotification(null, 'Datos actualizados', msg, 'profile_update', true);
+      }
+      onSave(form);
+    } else {
+      console.error('Error al guardar perfil:', error);
+    }
+  };
+
+  const renderFileBlock = (cat) => {
+    const catDocs = docsList.filter(d => d.categoria === cat.k);
+    const [dragging, setDragging] = useState(false);
+
+    const onDragOver = (e) => { e.preventDefault(); setDragging(true); };
+    const onDragLeave = () => setDragging(false);
+    const onDrop = (e) => {
+      e.preventDefault();
+      setDragging(false);
+      handleUpload(e.dataTransfer.files, cat.k);
+    };
+
+    return (
+      <div className="form-group" key={cat.k} style={{background: 'rgba(255,255,255,0.02)', padding: 10, borderRadius: 8, marginBottom: 10}}>
+        <label style={{color: 'var(--accent2)'}}>{cat.l}</label>
+        
+        {/* Campo manual para DNI o Tarjeta Sanitaria si es personal */}
+        {cat.k === 'dni' && (
+          <input value={form.dni||''} onChange={e=>setForm({...form, dni: e.target.value})} placeholder="Escribe el DNI aquí" style={{marginBottom: 8}} />
+        )}
+        {cat.k === 'tarjeta_sanitaria' && (
+          <input value={form.tarjeta_sanitaria||''} onChange={e=>setForm({...form, tarjeta_sanitaria: e.target.value})} placeholder="Nº Tarjeta Sanitaria" style={{marginBottom: 8}} />
+        )}
+
+        {cat.dateField && (
+          <input type="date" value={form[cat.dateField]||''} onChange={e=>setForm({...form, [cat.dateField]: e.target.value})} style={{marginBottom: 8}} />
+        )}
+        
+        <div style={{display:'flex', flexDirection:'column', gap: 5, marginBottom: 12}}>
+          {catDocs.map(d => (
+            <div key={d.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--bg3)', padding: '6px 10px', borderRadius: 6, fontSize: 11}}>
+              <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth: '170px'}} title={d.nombre_archivo}>{d.nombre_archivo}</span>
+              <div style={{display:'flex', gap: 6}}>
+                <a href={d.url} target="_blank" className="btn btn-secondary" style={{padding: '3px 7px', fontSize: 10}}><i className="fa-solid fa-eye"></i></a>
+                <button onClick={()=>deleteDoc(d)} className="btn btn-danger" style={{padding: '3px 7px', fontSize: 10, background:'transparent', border:'none', color:'var(--danger)'}}><i className="fa-solid fa-trash"></i></button>
+              </div>
+            </div>
+          ))}
+          {catDocs.length === 0 && <div style={{fontSize: 10, color: 'var(--text3)', fontStyle:'italic', textAlign:'center', padding: '10px 0'}}>Sin archivos subidos</div>}
+        </div>
+
+        <div 
+          className={`dropzone ${dragging ? 'dragging' : ''}`}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          onClick={() => document.getElementById(`file-${cat.k}`).click()}
+        >
+          <i className={`fa-solid ${uploading === cat.k ? 'fa-spinner fa-spin' : 'fa-cloud-arrow-up'}`}></i>
+          <span>{uploading === cat.k ? 'Subiendo archivos...' : 'Arrastra archivos aquí o haz clic'}</span>
+          <input 
+            id={`file-${cat.k}`}
+            type="file" 
+            multiple
+            onChange={e=>handleUpload(e.target.files, cat.k)} 
+            style={{display:'none'}} 
+          />
+        </div>
+        
+        {cat.dateField && form[cat.dateField] && (
+          <div className={`doc-status ${getDocStatus(form[cat.dateField]).class}`} style={{marginTop: 8}}>{getDocStatus(form[cat.dateField]).label}</div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="grid-2" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 20}}>
+      <div>
+        <h4 style={{marginBottom: 10, fontSize: 13, color: 'var(--text3)'}}>DATOS PERSONALES</h4>
+        <div className="form-group"><label>Nombre</label><input value={form.nombre||''} onChange={e=>setForm({...form, nombre: e.target.value})} /></div>
+        <div className="form-group"><label>Apellidos</label><input value={form.apellidos||''} onChange={e=>setForm({...form, apellidos: e.target.value})} /></div>
+        
+        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 10, marginBottom: 15}}>
+          <div className="form-group" style={{marginBottom: 0}}><label>Usuario (Login)</label><input value={form.username||''} onChange={e=>setForm({...form, username: e.target.value.toLowerCase()})} /></div>
+          <div className="form-group" style={{marginBottom: 0}}><label>Contraseña Acceso</label><input value={form.password_manual||''} onChange={e=>setForm({...form, password_manual: e.target.value})} /></div>
+        </div>
+
+        <div className="form-group"><label>CCC (Cotización)</label><input value={form.ccc||''} onChange={e=>setForm({...form, ccc: e.target.value})} /></div>
+        <div className="form-group"><label>Teléfono</label><input value={form.telefono||''} onChange={e=>setForm({...form, telefono: e.target.value})} /></div>
+        
+        <div style={{background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, marginBottom: 15, border: '1px solid var(--border)'}}>
+          <label style={{marginBottom: 10, display:'block'}}>ROL / FUNCIÓN PRINCIPAL</label>
+          <select 
+            value={form.role === 'admin' ? 'admin' : (form.es_carga ? 'carga' : (form.es_protocolo ? 'protocolo' : (form.es_rigger ? 'rigger' : 'employee')))} 
+            disabled={!isAdmin}
+            onChange={e => {
+              const val = e.target.value;
+              if (val === 'admin') {
+                setForm({...form, role: 'admin', es_carga: false, es_protocolo: false, es_rigger: false});
+              } else {
+                setForm({
+                  ...form, 
+                  role: 'employee', 
+                  es_carga: val === 'carga', 
+                  es_protocolo: val === 'protocolo', 
+                  es_rigger: val === 'rigger'
+                });
+              }
+            }}
+            style={{marginBottom: form.role !== 'admin' ? 12 : 0, opacity: isAdmin ? 1 : 0.7, cursor: isAdmin ? 'pointer' : 'not-allowed'}}
+          >
+            <option value="employee">— Seleccionar —</option>
+            <option value="admin">Administrador</option>
+            <option value="carga">Carga / Descarga</option>
+            <option value="protocolo">Protocolo</option>
+            <option value="rigger">Rigger</option>
+          </select>
+
+          {form.role !== 'admin' && (
+            <div style={{marginTop: 5, opacity: isAdmin ? 1 : 0.7}}>
+              <label style={{fontSize: 11, color: 'var(--text3)', marginBottom: 8, display:'block'}}>ESPECIALIDADES ADICIONALES</label>
+              <div style={{display:'flex', flexDirection:'column', gap: 8}}>
+                <label style={{display:'flex', alignItems:'center', gap: 8, cursor: isAdmin ? 'pointer' : 'not-allowed', fontWeight: 'normal', fontSize: 13}}>
+                  <input type="checkbox" checked={!!form.es_carga} disabled={!isAdmin} onChange={e=>setForm({...form, es_carga: e.target.checked})} style={{width:'auto'}} /> Carga / Descarga
+                </label>
+                <label style={{display:'flex', alignItems:'center', gap: 8, cursor: isAdmin ? 'pointer' : 'not-allowed', fontWeight: 'normal', fontSize: 13}}>
+                  <input type="checkbox" checked={!!form.es_protocolo} disabled={!isAdmin} onChange={e=>setForm({...form, es_protocolo: e.target.checked})} style={{width:'auto'}} /> Protocolo
+                </label>
+                <label style={{display:'flex', alignItems:'center', gap: 8, cursor: isAdmin ? 'pointer' : 'not-allowed', fontWeight: 'normal', fontSize: 13}}>
+                  <input type="checkbox" checked={!!form.es_rigger} disabled={!isAdmin} onChange={e=>setForm({...form, es_rigger: e.target.checked})} style={{width:'auto'}} /> Riggers
+                </label>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      <div>
+        <h4 style={{marginBottom: 10, fontSize: 13, color: 'var(--text3)'}}>DOCUMENTACIÓN Y CADUCIDADES</h4>
+        {renderFileBlock(DOC_CATEGORIES.find(c => c.k === 'dni'))}
+        {renderFileBlock(DOC_CATEGORIES.find(c => c.k === 'tarjeta_sanitaria'))}
+        {DOC_CATEGORIES.filter(c => !c.isPersonal).map(cat => renderFileBlock(cat))}
+        
+        <div style={{display:'flex', gap: 10, marginTop: 20}}>
+          <button className="btn btn-primary btn-full" onClick={save}>Guardar Datos y Fechas</button>
+          <button className="btn btn-secondary" onClick={onCancel}>Cancelar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EventModal({ event, employees, onSave, onCancel, toast, sendNotification }) {
+  const [form, setForm] = useState(event?.id ? { ...event } : { nombre: '', fecha: event?.fecha || '', ubicacion: '', notas: '', ...event });
+  const [selectedEmps, setSelectedEmps] = useState([]); // [{profile_id, horario, categoria_asignada}]
+  const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [specificUnavail, setSpecificUnavail] = useState([]);
+  const [filterCat, setFilterCat] = useState('carga'); // 'carga', 'protocolo', 'rigger'
+
+  useEffect(() => {
+    if (event?.id) {
+      loadAssignments();
+    }
+  }, [event]);
+
+  useEffect(() => {
+    if (form.fecha) {
+      loadAvailabilityForDate(form.fecha);
+    }
+  }, [form.fecha]);
+
+  const loadAssignments = async () => {
+    const { data } = await supabaseClient.from('event_assignments').select('profile_id, horario, categoria_asignada').eq('event_id', event.id);
+    setSelectedEmps(data || []);
+  };
+
+  const loadAvailabilityForDate = async (date) => {
+    const { data } = await supabaseClient.from('unavailable_days').select('user_id').eq('fecha', date);
+    setSpecificUnavail((data || []).map(u => u.user_id));
+  };
+
+  const save = async () => {
+    if (!form.nombre || !form.fecha) {
+      toast('Nombre y fecha son obligatorios', 'warn');
+      return;
+    }
+    setLoading(true);
+    let evId = form.id;
+    
+    const eventData = { nombre: form.nombre, fecha: form.fecha, ubicacion: form.ubicacion, notas: form.notas };
+    
+    if (evId) {
+      const { error } = await supabaseClient.from('events').update(eventData).eq('id', evId);
+      if (error) { toast('Error al actualizar evento', 'danger'); setLoading(false); return; }
+    } else {
+      const { data, error } = await supabaseClient.from('events').insert(eventData).select().single();
+      if (error) { toast('Error al crear evento', 'danger'); setLoading(false); return; }
+      evId = data.id;
+    }
+
+    // Update assignments
+    const { data: oldAsgs } = await supabaseClient.from('event_assignments').select('profile_id').eq('event_id', evId);
+    const oldIds = (oldAsgs || []).map(a => a.profile_id);
+
+    await supabaseClient.from('event_assignments').delete().eq('event_id', evId);
+    if (selectedEmps.length > 0) {
+      const assignments = selectedEmps.map(asg => ({ 
+        event_id: evId, 
+        profile_id: asg.profile_id,
+        horario: asg.horario || '',
+        categoria_asignada: asg.categoria_asignada || ''
+      }));
+      await supabaseClient.from('event_assignments').insert(assignments);
+
+      // Notificar a nuevos asignados
+      for (const asg of selectedEmps) {
+        if (!oldIds.includes(asg.profile_id)) {
+          sendNotification(asg.profile_id, 'Nuevo Evento Asignado', `Has sido asignado al evento: ${form.nombre} el ${formatDate(form.fecha)}.`, 'event_assignment');
+        }
+      }
+    }
+
+    setLoading(false);
+    toast('Evento guardado', 'success');
+    onSave();
+  };
+
+  const deleteEvent = async () => {
+    if (!confirm('¿Seguro que quieres eliminar este evento?')) return;
+    setLoading(true);
+    await supabaseClient.from('events').delete().eq('id', form.id);
+    setLoading(false);
+    toast('Evento eliminado', 'success');
+    onSave();
+  };
+
+  const toggleEmp = (pid) => {
+    if (selectedEmps.some(asg => asg.profile_id === pid)) {
+      setSelectedEmps(p => p.filter(asg => asg.profile_id !== pid));
+    } else {
+      const catLabel = filterCat === 'carga' ? 'Carga/Descarga' : (filterCat === 'protocolo' ? 'Protocolo' : 'Rigger');
+      setSelectedEmps(p => [...p, { profile_id: pid, horario: '', categoria_asignada: catLabel }]);
+    }
+  };
+
+  const updateHorario = (pid, val) => {
+    setSelectedEmps(p => p.map(asg => asg.profile_id === pid ? { ...asg, horario: val } : asg));
+  };
+
+  const generateEventFile = async () => {
+    if (!form.id) {
+      toast('Guarda el evento primero antes de generar el archivo', 'warn');
+      return;
+    }
+    setExporting(true);
+    toast('Generando paquete del evento...', 'info');
+
+    try {
+      const zip = new JSZip();
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF();
+      
+      pdf.setFontSize(20);
+      pdf.text('REKEN SERVICIOS LOGISTICOS', 20, 20);
+      pdf.setFontSize(14);
+      pdf.text(`Evento: ${form.nombre}`, 20, 35);
+      pdf.text(`Fecha: ${formatDate(form.fecha)}`, 20, 42);
+      pdf.text(`Ubicación: ${form.ubicacion || '—'}`, 20, 49);
+      pdf.text('------------------------------------------------', 20, 56);
+      pdf.text('LISTADO DE EMPLEADOS Y HORARIOS:', 20, 65);
+
+      let y = 75;
+      const assignedProfiles = employees.filter(e => selectedEmps.some(asg => asg.profile_id === e.id));
+
+      for (const emp of assignedProfiles) {
+        const asgInfo = selectedEmps.find(asg => asg.profile_id === emp.id);
+        
+        // Usar la categoría asignada específicamente para este evento
+        const catStr = asgInfo.categoria_asignada || 'No def.';
+
+        // Añadir al PDF con mejor formato
+        pdf.setFontSize(11);
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`${emp.nombre} ${emp.apellidos || ''}`, 20, y);
+        
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "normal");
+        y += 5;
+        pdf.text(`DNI: ${emp.dni || '—'}`, 25, y);
+        pdf.text(`TEL: ${emp.telefono || '—'}`, 65, y);
+        pdf.text(`CATEGORÍA: ${catStr}`, 105, y);
+        pdf.text(`HORARIO: ${asgInfo.horario || '—'}`, 155, y);
+        
+        y += 10;
+        
+        // Salto de página si es necesario
+        if (y > 280) {
+          pdf.addPage();
+          y = 20;
+        }
+
+        const empFolderName = `${emp.nombre}_${emp.apellidos || ''}`.trim().replace(/\s+/g, '_');
+        const empFolder = zip.folder(empFolderName);
+        const { data: docs } = await supabaseClient.from('documentos').select('*').eq('profile_id', emp.id);
+        if (docs && docs.length > 0) {
+          for (const doc of docs) {
+            try {
+              // Determinar nombre de la subcarpeta basado en la categoría
+              const catLabel = DOC_CATEGORIES.find(c => c.k === doc.categoria)?.l || doc.categoria;
+              const subFolder = empFolder.folder(catLabel.replace(/\//g, '-'));
+
+              const resp = await fetch(doc.url);
+              const blob = await resp.blob();
+              subFolder.file(doc.nombre_archivo, blob);
+            } catch (err) { console.error(err); }
+          }
+        }
+      }
+      zip.file("LISTADO_Y_HORARIOS.pdf", pdf.output('blob'));
+      const content = await zip.generateAsync({ type: "blob" });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(content);
+      link.download = `EVENTO_${form.nombre.replace(/\s+/g, '_')}_${form.fecha}.zip`;
+      link.click();
+      toast('Archivo generado con éxito', 'success');
+    } catch (err) {
+      console.error(err);
+      toast('Error al generar el archivo', 'danger');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const availableEmployees = employees.filter(e => !specificUnavail.includes(e.id));
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal" style={{maxWidth: 500}}>
+        <div className="modal-header">
+          <h2>{form.id ? 'Editar Evento' : 'Nuevo Evento'}</h2>
+          <button className="btn btn-secondary" onClick={onCancel}><i className="fa-solid fa-xmark"></i></button>
+        </div>
+        <div className="modal-body">
+          <div className="form-group">
+            <label>Nombre del Evento</label>
+            <input value={form.nombre} onChange={e=>setForm({...form, nombre: e.target.value})} placeholder="Ej: Boda Juan y María" />
+          </div>
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 15, marginBottom: 15}}>
+            <div className="form-group" style={{marginBottom: 0}}>
+              <label>Fecha</label>
+              <input type="date" value={form.fecha} onChange={e=>setForm({...form, fecha: e.target.value})} />
+            </div>
+            <div className="form-group" style={{marginBottom: 0}}>
+              <label>Ubicación</label>
+              <input value={form.ubicacion} onChange={e=>setForm({...form, ubicacion: e.target.value})} placeholder="Ej: Hotel Hilton" />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Notas / Anotaciones</label>
+            <textarea value={form.notas||''} onChange={e=>setForm({...form, notas: e.target.value})} placeholder="Detalles adicionales..." rows="3"></textarea>
+          </div>
+
+          <div style={{marginTop: 20, marginBottom: 10, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+            <h4 style={{fontSize: 13, color: 'var(--text2)'}}>ASIGNAR PERSONAL DISPONIBLES</h4>
+            <div style={{width: 180}}>
+              <select value={filterCat} onChange={e=>setFilterCat(e.target.value)} style={{padding: '5px 10px', fontSize: 12, marginBottom: 0}}>
+                <option value="carga">Carga / Descarga</option>
+                <option value="protocolo">Protocolo</option>
+                <option value="rigger">Riggers</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{display:'flex', flexDirection:'column', gap: 10, maxHeight: 280, overflowY:'auto', background:'var(--bg3)', padding: 10, borderRadius: 8}}>
+            {employees.filter(e => {
+              if (specificUnavail.includes(e.id)) return false;
+              if (filterCat === 'carga' && !e.es_carga) return false;
+              if (filterCat === 'protocolo' && !e.es_protocolo) return false;
+              if (filterCat === 'rigger' && !e.es_rigger) return false;
+              return true;
+            }).map(e => {
+              const isSelected = selectedEmps.some(asg => asg.profile_id === e.id);
+              const asgInfo = selectedEmps.find(asg => asg.profile_id === e.id);
+              return (
+                <div 
+                  key={e.id} 
+                  style={{
+                    padding: '10px', 
+                    borderRadius: 8, 
+                    fontSize: 13, 
+                    background: isSelected ? 'var(--accent-bg)' : 'var(--bg2)',
+                    border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10
+                  }}
+                >
+                  <div style={{display:'flex', alignItems:'center', justifyContent: 'space-between'}}>
+                    <div style={{display:'flex', alignItems:'center', gap: 10, cursor:'pointer'}} onClick={()=>toggleEmp(e.id)}>
+                      <i className={isSelected ? "fa-solid fa-check-circle" : "fa-regular fa-circle"} style={{color: isSelected ? 'var(--accent2)' : 'var(--text3)'}}></i>
+                      <span style={{fontWeight: 600}}>
+                        {e.nombre} {e.apellidos || ''}
+                      </span>
+                      {isSelected && <span className="cat-badge" style={{background: 'var(--accent)', color:'#fff', marginLeft: 10, fontSize: '9px'}}>{asgInfo.categoria_asignada}</span>}
+                    </div>
+                  </div>
+                  {isSelected && (
+                    <div className="form-group" style={{margin: 0, paddingLeft: 26}}>
+                      <label style={{fontSize: 11, color: 'var(--text2)'}}>Horario asignado</label>
+                      <input 
+                        value={asgInfo.horario || ''} 
+                        onChange={evt=>updateHorario(e.id, evt.target.value)} 
+                        placeholder="Ej: 08:00 a 16:00" 
+                        style={{padding: '6px 10px', fontSize: 12}}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {employees.filter(e => {
+              if (specificUnavail.includes(e.id)) return false;
+              if (filterCat === 'carga' && !e.es_carga) return false;
+              if (filterCat === 'protocolo' && !e.es_protocolo) return false;
+              if (filterCat === 'rigger' && !e.es_rigger) return false;
+              return true;
+            }).length === 0 && <div style={{textAlign:'center', fontSize: 12, color:'var(--text3)', padding: 15}}>No hay operarios disponibles en esta categoría</div>}
+          </div>
+
+          <div style={{display:'flex', flexWrap:'wrap', gap: 10, marginTop: 25}}>
+            <button className="btn btn-primary" style={{flex: 1}} onClick={save} disabled={loading || exporting}>
+              <i className="fa-solid fa-floppy-disk"></i> {loading ? 'Guardando...' : 'Guardar Evento'}
+            </button>
+            
+            {form.id && (
+              <button className="btn btn-secondary" style={{flex: 1}} onClick={generateEventFile} disabled={loading || exporting}>
+                <i className={`fa-solid ${exporting ? 'fa-spinner fa-spin' : 'fa-file-zipper'}`}></i> 
+                {exporting ? 'Generando...' : 'Generar Archivo de Evento'}
+              </button>
+            )}
+
+            {form.id && (
+              <button className="btn btn-danger" onClick={deleteEvent} disabled={loading || exporting}><i className="fa-solid fa-trash"></i></button>
+            )}
+            
+            <button className="btn btn-secondary" onClick={onCancel} disabled={loading || exporting}>Cancelar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DayDetailsModal({ date, employees, unavailData, events, assignments, onAddEvent, onEditEvent, onEditEmp, onClose }) {
+  const dateStr = date;
+  const dayEvents = events.filter(ev => ev.fecha === dateStr);
+  const unavailIds = unavailData.filter(u => u.fecha === dateStr).map(u => u.user_id);
+  
+  const availEmps = employees.filter(e => !unavailIds.includes(e.id));
+  const unavailEmps = employees.filter(e => unavailIds.includes(e.id));
+
+  // Calcular alarmas para este día específico
+  const docFields = [
+    { key: 'prl_art19_fecha', label: 'PRL 19' },
+    { key: 'prl_60h_fecha', label: 'PRL 60h' },
+    { key: 'carretilla_fecha', label: 'Carretilla' },
+    { key: 'reconocimiento_fecha', label: 'R. Medico' }
+  ];
+  const dayAlerts = [];
+  employees.forEach(e => {
+    docFields.forEach(f => {
+      if (e[f.key] === dateStr) dayAlerts.push({ e, doc: f.label });
+    });
+  });
+
+  const renderEmpRow = (e, isAvail) => (
+    <div key={e.id} 
+      onClick={() => onEditEmp(e)}
+      style={{
+        padding: '8px 12px', 
+        borderRadius: 8, 
+        fontSize: 12, 
+        display:'flex', 
+        alignItems:'center', 
+        justifyContent: 'space-between',
+        background: isAvail ? 'var(--success-bg)' : 'var(--danger-bg)',
+        color: isAvail ? 'var(--success)' : 'var(--danger)',
+        marginBottom: 4,
+        cursor: 'pointer',
+        border: '1px solid transparent'
+      }}
+      className="emp-row-hover"
+    >
+      <div style={{display:'flex', alignItems:'center', gap: 8}}>
+        <i className={isAvail ? "fa-solid fa-user-check" : "fa-solid fa-user-slash"}></i>
+        <span style={{fontWeight: 600}}>{e.nombre} {e.apellidos || ''}</span>
+      </div>
+      <div style={{display:'flex', gap: 3}}>
+        {e.es_carga && <span className="cat-badge" style={{background: isAvail?'rgba(46,204,113,0.2)':'rgba(231,76,60,0.2)', color:'inherit', fontSize:'8px'}}>C</span>}
+        {e.es_protocolo && <span className="cat-badge" style={{background: isAvail?'rgba(46,204,113,0.2)':'rgba(231,76,60,0.2)', color:'inherit', fontSize:'8px'}}>P</span>}
+        {e.es_rigger && <span className="cat-badge" style={{background: isAvail?'rgba(46,204,113,0.2)':'rgba(231,76,60,0.2)', color:'inherit', fontSize:'8px'}}>R</span>}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal" style={{maxWidth: 600}}>
+        <div className="modal-header">
+          <div>
+            <h2 style={{fontSize: 18}}>{formatDate(dateStr)}</h2>
+            <p style={{fontSize: 12, color: 'var(--text3)'}}>Gestión operativa del día</p>
+          </div>
+          <button className="btn btn-secondary" onClick={onClose}><i className="fa-solid fa-xmark"></i></button>
+        </div>
+        <div className="modal-body">
+          
+          {/* SECCIÓN ALARMAS */}
+          {dayAlerts.length > 0 && (
+            <div style={{marginBottom: 25}}>
+              <h4 style={{fontSize: 13, color:'var(--danger)', marginBottom: 10, display:'flex', alignItems:'center', gap: 6}}>
+                <i className="fa-solid fa-triangle-exclamation"></i> CADUCIDADES DEL DÍA
+              </h4>
+              <div style={{display:'flex', flexDirection:'column', gap: 6}}>
+                {dayAlerts.map((al, idx) => (
+                  <div key={idx} onClick={() => onEditEmp(al.e)} className="alert alert-danger" style={{margin:0, padding:'8px 12px', fontSize: 12, cursor:'pointer'}}>
+                    <b>{al.e.nombre} {al.e.apellidos}</b>: Caduca {al.doc}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* SECCIÓN EVENTOS */}
+          <div style={{marginBottom: 25}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 10}}>
+              <h4 style={{fontSize: 13, color:'var(--accent)'}}>EVENTOS ({dayEvents.length})</h4>
+              <button className="btn btn-primary" style={{padding: '4px 10px', fontSize: 11}} onClick={() => onAddEvent(dateStr)}>
+                <i className="fa-solid fa-plus"></i> Nuevo Evento
+              </button>
+            </div>
+            <div style={{display:'flex', flexDirection:'column', gap: 8}}>
+              {dayEvents.map(ev => (
+                <div key={ev.id} onClick={() => onEditEvent(ev)} className="card" style={{margin:0, padding: 12, background: 'var(--bg3)', border: '1px solid var(--border2)', display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer'}}>
+                  <div>
+                    <div style={{fontWeight: 600, fontSize: 14}}>{ev.nombre}</div>
+                    <div style={{fontSize: 11, color: 'var(--text2)'}}><i className="fa-solid fa-location-dot"></i> {ev.ubicacion || 'Sin ubicación'}</div>
+                  </div>
+                  <div style={{color:'var(--accent)', fontSize: 18}}><i className="fa-solid fa-circle-chevron-right"></i></div>
+                </div>
+              ))}
+              {dayEvents.length === 0 && <div style={{textAlign:'center', padding: 15, background: 'rgba(0,0,0,0.02)', borderRadius: 8, fontSize: 12, color: 'var(--text3)'}}>No hay eventos programados</div>}
+            </div>
+          </div>
+
+          {/* SECCIÓN PERSONAL */}
+          <div className="grid-2" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 15}}>
+            <div>
+              <h4 style={{fontSize: 12, color:'var(--success)', marginBottom: 10, display:'flex', alignItems:'center', gap: 5}}>
+                <i className="fa-solid fa-circle-check"></i> DISPONIBLES ({availEmps.length})
+              </h4>
+              <div style={{maxHeight: 250, overflowY:'auto'}}>
+                {availEmps.map(e => renderEmpRow(e, true))}
+                {availEmps.length === 0 && <div style={{fontSize: 11, color: 'var(--text3)', fontStyle:'italic'}}>Nadie disponible</div>}
+              </div>
+            </div>
+            <div>
+              <h4 style={{fontSize: 12, color:'var(--danger)', marginBottom: 10, display:'flex', alignItems:'center', gap: 5}}>
+                <i className="fa-solid fa-circle-xmark"></i> NO DISPONIBLES ({unavailEmps.length})
+              </h4>
+              <div style={{maxHeight: 250, overflowY:'auto'}}>
+                {unavailEmps.map(e => renderEmpRow(e, false))}
+                {unavailEmps.length === 0 && <div style={{fontSize: 11, color: 'var(--text3)', fontStyle:'italic'}}>Nadie ausente</div>}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GeneralCalendarView({ employees, toast, setSelectedEmp, sendNotification }) {
+  const [unavailData, setUnavailData] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [showEventModal, setShowEventModal] = useState(false);
+  
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [showDayModal, setShowDayModal] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+  
+  const today = new Date();
+  const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const start = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).toISOString().split('T')[0];
+    const end = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).toISOString().split('T')[0];
+    
+    try {
+      const { data: unavail } = await supabaseClient.from('unavailable_days').select('user_id, fecha').gte('fecha', start).lte('fecha', end);
+      setUnavailData(unavail || []);
+
+      const { data: evs } = await supabaseClient.from('events').select('*').gte('fecha', start).lte('fecha', end);
+      setEvents(evs || []);
+
+      if (evs && evs.length > 0) {
+        const evIds = evs.map(e => e.id);
+        const { data: asgs } = await supabaseClient.from('event_assignments').select('*').in('event_id', evIds);
+        setAssignments(asgs || []);
+      } else {
+        setAssignments([]);
+      }
+    } catch (err) {
+      console.error(err);
+      toast('Error al cargar datos del calendario', 'danger');
+    } finally {
+      setLoading(false);
+    }
+  }, [viewDate, toast]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
+  const firstDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
+  const offset = (firstDay + 6) % 7;
+
+  // Document types to check for expiration
+  const docFields = [
+    { key: 'prl_art19_fecha', label: 'PRL 19' },
+    { key: 'prl_60h_fecha', label: 'PRL 60h' },
+    { key: 'carretilla_fecha', label: 'Carretilla' },
+    { key: 'reconocimiento_fecha', label: 'R. Medico' }
+  ];
+
+  return (
+    <div>
+      <div style={{display:'flex', justifyContent:'space-between', marginBottom: 20, alignItems:'center'}}>
+        <h1>Calendario General</h1>
+        <div style={{display:'flex', gap: 15, alignItems:'center'}}>
+          <button className="btn btn-primary" onClick={() => { setSelectedEvent(null); setShowEventModal(true); }}>
+            <i className="fa-solid fa-calendar-plus"></i> Nuevo Evento
+          </button>
+          <div style={{display:'flex', gap: 10, alignItems:'center'}}>
+            <h3 style={{fontSize: 18}}>{viewDate.toLocaleString('es', { month: 'long', year: 'numeric' }).toUpperCase()}</h3>
+            <div style={{display:'flex', gap: 5}}>
+              <button className="btn btn-secondary" onClick={()=>setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1))}><i className="fa-solid fa-chevron-left"></i></button>
+              <button className="btn btn-secondary" onClick={()=>setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1))}><i className="fa-solid fa-chevron-right"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="gen-cal-grid">
+        {['LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO','DOMINGO'].map(d => <div key={d} className="cal-day-name">{d}</div>)}
+        {Array(offset).fill(0).map((_,i) => <div key={i} className="gen-cal-day" style={{opacity: 0.2, background:'transparent', boxShadow:'none'}}></div>)}
+        {Array(daysInMonth).fill(0).map((_,i) => {
+          const d = i + 1;
+          const dateStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          const isToday = dateStr === new Date().toISOString().split('T')[0];
+          
+          const dayEvents = events.filter(ev => ev.fecha === dateStr);
+          const dayExpirations = [];
+          employees.forEach(e => {
+            docFields.forEach(f => {
+              if (e[f.key] === dateStr) dayExpirations.push({ emp: e.nombre, doc: f.label });
+            });
+          });
+
+          return (
+            <div 
+              key={d} 
+              className={`gen-cal-day ${isToday?'today':''}`}
+              onClick={() => { setSelectedDay(dateStr); setShowDayModal(true); }}
+              style={{ cursor: 'pointer' }}
+            >
+              <div className="gen-cal-day-num">{d}</div>
+              
+              <div style={{overflowY:'auto', flex: 1, display:'flex', flexDirection:'column', gap: 2}}>
+                {dayExpirations.map((exp, idx) => (
+                  <div key={idx} style={{background: 'var(--danger-bg)', color: 'var(--danger)', fontSize: 8, padding: '1px 4px', borderRadius: 4, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>
+                    ⚠️ {exp.doc}: {exp.emp}
+                  </div>
+                ))}
+
+                {dayEvents.map(ev => {
+                  const evAsgs = assignments.filter(a => a.event_id === ev.id);
+                  return (
+                    <button 
+                      key={ev.id} 
+                      className="event-tag" 
+                      onClick={(e)=>{ e.stopPropagation(); setSelectedEvent(ev); setShowEventModal(true); }}
+                    >
+                      <i className="fa-solid fa-star" style={{fontSize: 8}}></i> {ev.nombre} ({evAsgs.length})
+                    </button>
+                  );
+                })}
+                
+                <div style={{marginTop: 4, paddingTop: 4, borderTop: (dayEvents.length || dayExpirations.length) ? '1px solid var(--border)' : 'none', display:'flex', flexWrap:'wrap', gap: 2}}>
+                  {employees.map(e => {
+                    const isUnavail = unavailData.some(u => u.user_id === e.id && u.fecha === dateStr);
+                    const catChars = [];
+                    if (e.es_carga) catChars.push('C');
+                    if (e.es_protocolo) catChars.push('P');
+                    if (e.es_rigger) catChars.push('R');
+                    const catStr = catChars.length ? `[${catChars.join('')}]` : '';
+
+                    return (
+                      <div key={e.id} className={`emp-tag ${isUnavail?'unavail':'avail'}`} style={{fontSize: 8, padding: '1px 3px', whiteSpace:'nowrap'}}>
+                        {e.nombre} {catStr}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {showDayModal && (
+        <DayDetailsModal 
+          date={selectedDay}
+          employees={employees}
+          unavailData={unavailData}
+          events={events}
+          assignments={assignments}
+          onAddEvent={(date) => { setSelectedEvent({ fecha: date }); setShowEventModal(true); }}
+          onEditEvent={(ev) => { setSelectedEvent(ev); setShowEventModal(true); }}
+          onEditEmp={(emp) => { setSelectedEmp(emp); setShowDayModal(false); }}
+          onClose={() => setShowDayModal(false)}
+        />
+      )}
+
+      {showEventModal && (
+        <EventModal 
+          event={selectedEvent} 
+          employees={employees} 
+          onSave={() => { setShowEventModal(false); load(); }} 
+          onCancel={() => setShowEventModal(false)} 
+          toast={toast}
+          sendNotification={sendNotification}
+        />
+      )}
+    </div>
+  );
+}
+
+function MainApp() {
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(false);
+  
+  const [page, setPage] = useState('dashboard');
+  const [employees, setEmployees] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [selectedEmp, setSelectedEmp] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [toasts, setToasts] = useState([]);
+
+  const sendNotification = async (profileId, title, message, type, isForAdmin = false) => {
+    try {
+      await supabaseClient.from('notifications').insert({
+        profile_id: profileId,
+        title,
+        message,
+        type,
+        is_for_admin: isForAdmin
+      });
+    } catch (err) {
+      console.error('Error sending notification:', err);
+    }
+  };
+
+  const loadNotifications = async (profileToUse = profile) => {
+    if (!profileToUse) {
+      console.log('loadNotifications abortado: no hay perfil');
+      return;
+    }
+    try {
+      console.log('Iniciando carga de notificaciones para:', profileToUse.nombre, profileToUse.id);
+      let query = supabaseClient.from('notifications').select('*').order('created_at', { ascending: false }).limit(20);
+      
+      if (profileToUse.role === 'admin') {
+        query = query.or(`profile_id.eq.${profileToUse.id},is_for_admin.eq.true`);
+      } else {
+        query = query.eq('profile_id', profileToUse.id);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        console.error('Error de Supabase en loadNotifications:', error);
+        if (error.code === 'PGRST116' || error.message?.includes('not found')) {
+          console.warn('AVISO: La tabla "notifications" no existe. Ejecuta el script SQL.');
+        }
+        return;
+      }
+      console.log('Notificaciones recuperadas con éxito:', data?.length);
+      setNotifications(data || []);
+    } catch (err) {
+      console.error('Excepción en loadNotifications:', err);
+    }
+  };
+
+  const markAsRead = async (id) => {
+    await supabaseClient.from('notifications').update({ is_read: true }).eq('id', id);
+    loadNotifications();
+  };
+
+  const toast = (msg, type='info') => {
+    const id = Date.now();
+    setToasts(p => [...p, { id, msg, type }]);
+    setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 3000);
+  };
+
+  const loadProfile = async (uid, manualProfile = null) => {
+    if (!uid && !manualProfile) return;
+    
+    let currentProfile = manualProfile;
+    if (!currentProfile) {
+      const { data } = await supabaseClient.from('profiles').select('*').eq('id', uid).single();
+      currentProfile = data;
+    }
+
+    if (currentProfile) {
+      setProfile(currentProfile);
+      if (currentProfile.role === 'admin') {
+        loadEmployees();
+      }
+      // Aseguramos que cargamos todo usando el perfil actual directamente
+      loadEvents(currentProfile);
+      loadNotifications(currentProfile);
+    }
+  };
+
+  const loadEmployees = async () => {
+    const { data, error } = await supabaseClient.from('profiles').select('*').order('nombre');
+    if (error) {
+      console.error('Error cargando empleados:', error);
+      toast('Error al cargar la lista de empleados', 'danger');
+    } else {
+      console.log('Empleados cargados:', data?.length);
+      setEmployees(data || []);
+    }
+  };
+
+  const loadEvents = async (profileToUse = profile) => {
+    if (!profileToUse) {
+      console.log('loadEvents abortado: no hay perfil');
+      return;
+    }
+    
+    const now = new Date();
+    now.setHours(0,0,0,0);
+    const todayStr = now.toISOString().split('T')[0];
+    console.log('Cargando eventos desde:', todayStr, 'para:', profileToUse.nombre);
+    
+    try {
+      if (profileToUse.role === 'admin') {
+        const { data, error } = await supabaseClient
+          .from('events')
+          .select('*')
+          .gte('fecha', todayStr)
+          .order('fecha', { ascending: true })
+          .limit(10);
+        
+        if (error) {
+          console.error('Error Admin loadEvents:', error);
+        } else {
+          console.log('Eventos Admin cargados:', data?.length);
+          setEvents(data || []);
+        }
+      } else {
+        // Para empleados: buscar solo sus eventos asignados
+        console.log('Buscando asignaciones para ID:', profileToUse.id);
+        const { data, error } = await supabaseClient
+          .from('event_assignments')
+          .select('horario, categoria_asignada, events (*)')
+          .eq('profile_id', profileToUse.id);
+        
+        if (error) {
+          console.error('Error Empleado loadEvents:', error);
+        } else if (data) {
+          console.log('Asignaciones brutas:', data.length);
+          const formatted = data
+            .filter(asg => asg.events && asg.events.fecha >= todayStr)
+            .map(asg => ({
+              ...asg.events,
+              horario_asignado: asg.horario,
+              categoria_asignada: asg.categoria_asignada
+            }))
+            .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+          
+          console.log('Eventos filtrados y formateados:', formatted.length);
+          setEvents(formatted);
+        }
+      }
+    } catch (err) {
+      console.error('Excepción en loadEvents:', err);
+    }
+  };
+
+  const syncProfiles = async () => {
+    setLoading(true);
+    toast('Sincronizando datos...', 'info');
+    await loadEmployees();
+    await loadEvents();
+    setLoading(false);
+    toast('Dashboard actualizado', 'success');
+  };
+
+  useEffect(() => {
+    const sb = initSupabase();
+    if (!sb) return;
+    
+    sb.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user || null);
+      if (session?.user) loadProfile(session.user.id);
+    });
+
+    const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+      if (session?.user) loadProfile(session.user.id);
+      else setProfile(null);
+    });
+    
+    // Polling de notificaciones cada 60 segundos
+    const interval = setInterval(() => {
+      loadNotifications();
+    }, 60000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Función para crear empleado (Directo a Tabla, sin Auth)
+  const addEmployee = async (empData) => {
+    setLoading(true);
+    const tempId = crypto.randomUUID();
+
+    const { error: profError } = await supabaseClient.from('profiles').insert({
+      id: tempId,
+      username: empData.username.toLowerCase(),
+      password_manual: empData.password,
+      nombre: empData.nombre,
+      apellidos: empData.apellidos,
+      role: empData.role || 'employee',
+      es_carga: !!empData.es_carga,
+      es_protocolo: !!empData.es_protocolo,
+      es_rigger: !!empData.es_rigger
+    });
+
+    setLoading(false);
+    if (profError) {
+      console.error('Error al crear perfil:', profError);
+      toast('Error al guardar el empleado. Asegúrate de que el usuario no esté repetido.', 'danger');
+    } else {
+      toast('Empleado añadido con éxito', 'success');
+      loadEmployees();
+      setShowAddModal(false);
+    }
+  };
+
+  if (!getSBConfig().url) return <SetupPage onComplete={()=>window.location.reload()} />;
+  if (!user) return (
+    <AuthPage 
+      toast={toast} 
+      onBypass={(u, p) => { 
+        setUser(u); 
+        loadProfile(u.id, p);
+        setPage('dashboard');
+      }} 
+    />
+  );
+  if (!profile) return <div className="auth-wrap">Cargando...</div>;
+  
+  const isAdmin = profile?.role === 'admin';
+  
+  // Alertas para Admin
+  const alerts = [];
+  if (isAdmin) {
+    employees.filter(e => e.role !== 'admin').forEach(e => {
+      ['prl_art19_fecha', 'prl_60h_fecha', 'carretilla_fecha', 'reconocimiento_fecha'].forEach(k => {
+        const s = getDocStatus(e[k]);
+        if (s.status === 'expired') alerts.push({ e, label: k.replace('_fecha','').toUpperCase().replace('PRL_','PRL '), type: 'expired', date: e[k] });
+        else if (s.status === 'warn') alerts.push({ e, label: k.replace('_fecha','').toUpperCase().replace('PRL_','PRL '), type: 'warn', date: e[k] });
+      });
+    });
+    // Ordenar por fecha (las más antiguas/próximas primero)
+    alerts.sort((a, b) => {
+      if (!a.date) return 1;
+      if (!b.date) return -1;
+      return new Date(a.date) - new Date(b.date);
+    });
+  }
+
+  const operativeEmployees = employees.filter(e => e.role !== 'admin');
+
+  return (
+    <div className="app-layout">
+      <nav className="sidebar">
+        <div className="sidebar-header">
+          <div className="sidebar-logo">
+            <img src="WhatsApp Image 2026-06-10 at 11.42.25.jpeg" alt="Rekan Events" />
+          </div>
+        </div>
+        <div className="sidebar-nav">
+          <div className="nav-section">PRINCIPAL</div>
+          <button className={`nav-item ${page==='dashboard'?'active':''}`} onClick={()=>setPage('dashboard')}><i className="fa-solid fa-gauge"></i> Panel Control</button>
+          {isAdmin && <button className={`nav-item ${page==='employees'?'active':''}`} onClick={()=>setPage('employees')}><i className="fa-solid fa-users"></i> Empleados</button>}
+          {isAdmin && <button className={`nav-item ${page==='gencal'?'active':''}`} onClick={()=>setPage('gencal')}><i className="fa-solid fa-calendar-days"></i> Calendario General</button>}
+          {!isAdmin && <button className={`nav-item ${page==='mycal'?'active':''}`} onClick={()=>setPage('mycal')}><i className="fa-solid fa-calendar"></i> Mi Disponibilidad</button>}
+          
+          <button className={`nav-item ${showNotifications?'active':''}`} onClick={()=>setShowNotifications(!showNotifications)}>
+            <i className="fa-solid fa-bell"></i> Notificaciones 
+            {notifications.filter(n => !n.is_read).length > 0 && (
+              <span style={{background:'var(--accent)', color:'#fff', borderRadius:'50%', padding:'2px 6px', fontSize:'10px', marginLeft:'auto'}}>
+                {notifications.filter(n => !n.is_read).length}
+              </span>
+            )}
+          </button>
+
+          <div className="nav-section">CONFIGURACIÓN</div>
+          {isAdmin && <button className={`nav-item ${page==='admins'?'active':''}`} onClick={()=>setPage('admins')}><i className="fa-solid fa-user-shield"></i> Administradores</button>}
+          <button className={`nav-item ${page==='myprofile'?'active':''}`} onClick={()=>setPage('myprofile')}><i className="fa-solid fa-user"></i> Mi Ficha</button>
+        </div>
+        <div className="sidebar-footer">
+          <div style={{fontSize: 12, marginBottom: 10, color: 'var(--text3)'}}>{profile.nombre} ({profile.role})</div>
+          <button className="btn btn-secondary btn-full" onClick={()=>supabaseClient.auth.signOut()}><i className="fa-solid fa-right-from-bracket"></i> Salir</button>
+        </div>
+      </nav>
+
+      <main className="main-content">
+        {showNotifications && (
+          <div className="card" style={{position:'fixed', top:'20px', right:'20px', width:'350px', zIndex: 1000, boxShadow:'0 10px 30px rgba(0,0,0,0.2)', border:'1px solid var(--accent)', background:'var(--bg2)'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:15}}>
+              <h3 style={{fontSize:16}}><i className="fa-solid fa-bell"></i> Notificaciones</h3>
+              <div style={{display:'flex', gap: 5}}>
+                {notifications.some(n => !n.is_read) && (
+                  <button className="btn btn-secondary" style={{padding:'4px 8px', fontSize: 10}} onClick={async ()=>{
+                    await supabaseClient.from('notifications').update({ is_read: true }).eq('profile_id', profile.id);
+                    if(profile.role === 'admin') await supabaseClient.from('notifications').update({ is_read: true }).eq('is_for_admin', true);
+                    loadNotifications();
+                  }}>Leer todo</button>
+                )}
+                <button className="btn btn-secondary" style={{padding:'4px 8px'}} onClick={()=>setShowNotifications(false)}><i className="fa-solid fa-xmark"></i></button>
+              </div>
+            </div>
+            <div style={{maxHeight:'400px', overflowY:'auto', display:'flex', flexDirection:'column', gap:8}}>
+              {notifications.length === 0 ? <div style={{textAlign:'center', padding:20, color:'var(--text3)', fontSize:12}}>No hay notificaciones</div> : notifications.map(n => (
+                <div key={n.id} style={{padding:10, background: n.is_read ? 'var(--bg3)' : 'var(--accent-bg)', borderRadius:8, border:'1px solid var(--border)', fontSize:12, position:'relative'}}>
+                  <div style={{fontWeight:600, marginBottom:2}}>{n.title}</div>
+                  <div style={{color:'var(--text2)', marginBottom:5}}>{n.message}</div>
+                  <div style={{fontSize:10, color:'var(--text3)'}}>{new Date(n.created_at).toLocaleString()}</div>
+                  {!n.is_read && <button onClick={()=>markAsRead(n.id)} style={{position:'absolute', top:10, right:10, background:'transparent', border:'none', color:'var(--accent)', cursor:'pointer'}} title="Marcar como leída"><i className="fa-solid fa-check"></i></button>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {page === 'dashboard' && !isAdmin && (
+          <div>
+            <div className="page-header"><h1>Hola, {profile.nombre}</h1></div>
+            
+            <div className="grid-3">
+              <div className="stat-card">
+                <div className="stat-label">MIS EVENTOS</div>
+                <div className="stat-value">{events.length}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">AVISOS NUEVOS</div>
+                <div className="stat-value" style={{color: notifications.filter(n=>!n.is_read).length ? 'var(--accent)' : 'var(--text)'}}>
+                  {notifications.filter(n=>!n.is_read).length}
+                </div>
+              </div>
+            </div>
+
+            <div style={{display:'grid', gridTemplateColumns:'1fr', gap:'20px'}}>
+              <div className="card">
+                <h3 style={{marginBottom: 15, color:'var(--accent)'}}><i className="fa-solid fa-calendar-star"></i> EVENTOS ASIGNADOS</h3>
+                <div style={{display:'flex', flexDirection:'column', gap: 10}}>
+                  {events.length === 0 ? (
+                    <div className="alert alert-success" style={{background:'var(--bg3)', color:'var(--text2)', borderColor:'var(--border)'}}>
+                      No tienes eventos asignados próximamente.
+                    </div>
+                  ) : events.map(ev => (
+                    <div key={ev.id} className="card" style={{margin:0, padding: 15, background: 'var(--bg3)', border: '1px solid var(--border2)'}}>
+                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                        <div>
+                          <div style={{fontWeight: 700, fontSize: 16, color:'var(--accent)'}}>{ev.nombre}</div>
+                          <div style={{fontSize: 13, marginTop: 5}}><i className="fa-solid fa-location-dot"></i> {ev.ubicacion || '—'}</div>
+                          <div style={{fontSize: 13, marginTop: 5, color:'var(--text2)'}}><i className="fa-solid fa-clock"></i> {ev.horario_asignado || 'Horario por confirmar'}</div>
+                        </div>
+                        <div style={{textAlign:'right'}}>
+                          <div style={{fontSize: 14, fontWeight: 700}}>{formatDate(ev.fecha)}</div>
+                          <div className="cat-badge" style={{marginTop: 8, background:'var(--accent)', color:'#fff'}}>{ev.categoria_asignada || 'General'}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {page === 'dashboard' && isAdmin && (
+          <div>
+            <div className="page-header"><h1>Dashboard de Alertas</h1></div>
+            <div className="grid-3">
+              <div className="stat-card"><div className="stat-label">OPERARIOS</div><div className="stat-value">{employees.length}</div></div>
+              <div className="stat-card"><div className="stat-label">ALERTAS ACTIVAS</div><div className="stat-value" style={{color: alerts.length ? 'var(--danger)' : 'var(--success)'}}>{alerts.length}</div></div>
+            </div>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px'}}>
+              <div className="card">
+                <h3 style={{marginBottom: 15, color:'var(--accent)'}}><i className="fa-solid fa-calendar-check"></i> PRÓXIMOS EVENTOS</h3>
+                <div style={{display:'flex', flexDirection:'column', gap: 10}}>
+                  {events.length === 0 ? <div className="alert alert-success">No hay eventos próximos.</div> : events.map(ev => (
+                    <div key={ev.id} className="card" style={{margin:0, padding: 12, background: 'var(--bg3)', border: '1px solid var(--border2)', cursor:'pointer'}} onClick={()=>{ setSelectedEvent(ev); setShowEventModal(true); }}>
+                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                        <div>
+                          <div style={{fontWeight: 600, fontSize: 14}}>{ev.nombre}</div>
+                          <div style={{fontSize: 11, color: 'var(--text2)'}}><i className="fa-solid fa-location-dot"></i> {ev.ubicacion || '—'}</div>
+                        </div>
+                        <div style={{textAlign:'right'}}>
+                          <div style={{fontSize: 12, fontWeight: 700, color: 'var(--accent)'}}>{formatDate(ev.fecha)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {events.length > 0 && <button className="btn btn-secondary btn-full" style={{marginTop: 10}} onClick={()=>setPage('gencal')}>Ver todos en el calendario</button>}
+                </div>
+              </div>
+
+              <div className="card">
+                <h3 style={{marginBottom: 15, color:'var(--danger)'}}><i className="fa-solid fa-bell"></i> ALARMAS DE DOCUMENTACIÓN</h3>
+                {alerts.length === 0 ? <div className="alert alert-success">Todo al día.</div> : (
+                  <div style={{maxHeight:'400px', overflowY:'auto', display:'flex', flexDirection:'column', gap: '8px'}}>
+                    {alerts.map((a, i) => (
+                      <div 
+                        key={i} 
+                        className={`alert ${a.type==='expired'?'alert-danger':'alert-warn'}`} 
+                        style={{cursor: 'pointer', margin: 0}}
+                        onClick={() => setSelectedEmp(a.e)}
+                      >
+                        <i className="fa-solid fa-circle-exclamation"></i>
+                        <span>
+                          <b>{a.e.nombre} {a.e.apellidos || ''}</b>: {a.label} 
+                          <span style={{marginLeft: 8, opacity: 0.9, fontWeight: 'bold'}}>
+                            ({a.type==='expired' ? 'CADUCÓ' : 'CADUCA'} {formatDate(a.date)})
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showEventModal && (
+          <EventModal 
+            event={selectedEvent} 
+            employees={employees} 
+            onSave={() => { setShowEventModal(false); loadEvents(); }} 
+            onCancel={() => setShowEventModal(false)} 
+            toast={toast}
+            sendNotification={sendNotification}
+          />
+        )}
+
+        {page === 'employees' && isAdmin && (
+          <div>
+            <div className="page-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <h1>Gestión de Empleados</h1>
+              <div style={{display:'flex', gap: 10}}>
+                <button className="btn btn-secondary" onClick={syncProfiles} disabled={loading}>
+                  <i className={`fa-solid fa-rotate ${loading?'fa-spin':''}`}></i> Actualizar
+                </button>
+                <button className="btn btn-primary" onClick={()=>setShowAddModal(true)}>
+                  <i className="fa-solid fa-user-plus"></i> Nuevo Empleado
+                </button>
+              </div>
+            </div>
+            <div className="card" style={{padding: 0, overflow:'hidden'}}>
+              <table style={{width:'100%', borderCollapse:'collapse'}}>
+                <thead style={{background:'var(--bg3)'}}>
+                  <tr>
+                    <th style={{padding: 15, textAlign:'left', fontSize: 12}}>NOMBRE Y APELLIDOS</th>
+                    <th style={{padding: 15, textAlign:'left', fontSize: 12}}>DNI</th>
+                    <th style={{padding: 15, textAlign:'left', fontSize: 12}}>ACCIONES</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees.length === 0 ? (
+                    <tr>
+                      <td colSpan="3" style={{padding: 30, textAlign:'center', color: 'var(--text3)'}}>
+                        <i className="fa-solid fa-users-slash" style={{fontSize: 24, display:'block', marginBottom: 10, opacity: 0.5}}></i>
+                        No hay empleados registrados todavía.
+                      </td>
+                    </tr>
+                  ) : employees.filter(e => e.role !== 'admin').map(e => (
+                    <tr key={e.id} style={{borderBottom: '1px solid var(--border)'}}>
+                      <td style={{padding: 15}}>
+                        <div style={{fontWeight: 500}}>{e.nombre} {e.apellidos || ''}</div>
+                        <div style={{display:'flex', gap: 4, marginTop: 4}}>
+                          {e.es_carga && <span className="cat-badge" style={{marginLeft: 0, background:'rgba(46,204,113,0.1)', color:'#2ecc71', borderColor:'rgba(46,204,113,0.2)'}}>Carga/Desc.</span>}
+                          {e.es_protocolo && <span className="cat-badge" style={{marginLeft: 0, background:'rgba(52,152,219,0.1)', color:'#3498db', borderColor:'rgba(52,152,219,0.2)'}}>Protocolo</span>}
+                          {e.es_rigger && <span className="cat-badge" style={{marginLeft: 0, background:'rgba(155,89,182,0.1)', color:'#9b59b6', borderColor:'rgba(155,89,182,0.2)'}}>Rigger</span>}
+                        </div>
+                      </td>
+                      <td style={{padding: 15}}>{e.dni || '—'}</td>
+                      <td style={{padding: 15}}>
+                        <button className="btn btn-secondary" onClick={()=>setSelectedEmp(e)}>Ver Ficha</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {page === 'gencal' && isAdmin && (
+          <GeneralCalendarView employees={operativeEmployees} toast={toast} setSelectedEmp={setSelectedEmp} sendNotification={sendNotification} />
+        )}
+
+        {page === 'admins' && isAdmin && (
+          <div>
+            <div className="page-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <h1>Gestión de Administradores</h1>
+              <button className="btn btn-primary" onClick={()=>setShowAddModal(true)}>
+                <i className="fa-solid fa-user-shield"></i> Nuevo Administrador
+              </button>
+            </div>
+            <div className="card" style={{padding: 0, overflow:'hidden'}}>
+              <table style={{width:'100%', borderCollapse:'collapse'}}>
+                <thead style={{background:'var(--bg3)'}}>
+                  <tr>
+                    <th style={{padding: 15, textAlign:'left', fontSize: 12}}>NOMBRE</th>
+                    <th style={{padding: 15, textAlign:'left', fontSize: 12}}>USUARIO</th>
+                    <th style={{padding: 15, textAlign:'left', fontSize: 12}}>ACCIONES</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees.filter(e => e.role === 'admin').map(e => (
+                    <tr key={e.id} style={{borderBottom: '1px solid var(--border)'}}>
+                      <td style={{padding: 15}}>{e.nombre} {e.apellidos || ''}</td>
+                      <td style={{padding: 15}}>{e.username}</td>
+                      <td style={{padding: 15}}>
+                        <div style={{display:'flex', gap: 5}}>
+                          <button className="btn btn-secondary" onClick={()=>setSelectedEmp(e)}>Editar / Password</button>
+                          {e.id !== profile.id && (
+                            <button className="btn btn-danger" onClick={async ()=>{
+                              if(confirm(`¿Eliminar a ${e.nombre}?`)){
+                                await supabaseClient.from('profiles').delete().eq('id', e.id);
+                                loadEmployees();
+                                toast('Administrador eliminado', 'success');
+                              }
+                            }}><i className="fa-solid fa-trash"></i></button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {page === 'myprofile' && (
+          <div>
+            <div className="page-header"><h1>Mi Ficha Personal</h1></div>
+            <div className="card">
+              <EmployeeForm 
+                profile={profile} 
+                isAdmin={false} 
+                onSave={(newProfile)=>{
+                  loadProfile(profile.id);
+                  toast('Datos guardados correctamente', 'success');
+                  setPage('dashboard');
+                }} 
+                onCancel={()=>setPage('dashboard')} 
+                sendNotification={sendNotification}
+                currentUser={profile}
+              />
+            </div>
+          </div>
+        )}
+
+        {page === 'mycal' && !isAdmin && (
+          <div>
+            <div className="page-header"><h1>Mi Disponibilidad</h1><p style={{fontSize: 14, color: 'var(--text2)'}}>Marca los días que NO estás disponible para trabajar.</p></div>
+            <CalendarView userId={profile.id} isAdmin={false} toast={toast} />
+          </div>
+        )}
+      </main>
+
+      {selectedEmp && (
+        <div className="modal-overlay">
+          <div className="modal" style={{maxWidth: 1000}}>
+            <div className="modal-header">
+              <div>
+                <h2>Ficha: {selectedEmp.nombre} {selectedEmp.apellidos || ''}</h2>
+                <p style={{fontSize: 12, color: 'var(--text3)'}}>{selectedEmp.role === 'admin' ? 'Personal de Administración' : 'Personal Operativo'}</p>
+              </div>
+              <button className="btn btn-secondary" onClick={()=>setSelectedEmp(null)}><i className="fa-solid fa-xmark"></i></button>
+            </div>
+            <div className="modal-body">
+              <div className="tabs">
+                <button className="tab active">Datos</button>
+              </div>
+              <EmployeeForm 
+                profile={selectedEmp} 
+                isAdmin={isAdmin} 
+                onSave={()=>{loadEmployees(); setSelectedEmp(null);}} 
+                onCancel={()=>setSelectedEmp(null)} 
+                sendNotification={sendNotification}
+                currentUser={profile}
+              />
+              {selectedEmp.role !== 'admin' && (
+                <div style={{marginTop: 20}}>
+                  <h4 style={{marginBottom: 10, fontSize: 13}}>DISPONIBILIDAD</h4>
+                  <CalendarView userId={selectedEmp.id} isAdmin={true} toast={toast} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{maxWidth: 400}}>
+            <div className="modal-header">
+              <h2>Registrar Nuevo Empleado</h2>
+              <button className="btn btn-secondary" onClick={()=>setShowAddModal(false)}><i className="fa-solid fa-xmark"></i></button>
+            </div>
+            <div className="modal-body">
+              <AddEmployeeForm onSave={addEmployee} onCancel={()=>setShowAddModal(false)} isLoading={loading} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="toast-container">
+        {toasts.map(t => (
+          <div key={t.id} className={`toast alert alert-${t.type}`}>{t.msg}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AddEmployeeForm({ onSave, onCancel, isLoading }) {
+  const [f, setF] = useState({ nombre: '', apellidos: '', user: '', pass: '', role: 'employee' });
+  return (
+    <div>
+      <div className="form-group"><label>Nombre</label><input value={f.nombre} onChange={e=>setF({...f, nombre: e.target.value})} /></div>
+      <div className="form-group"><label>Apellidos</label><input value={f.apellidos} onChange={e=>setF({...f, apellidos: e.target.value})} /></div>
+      <div className="form-group"><label>Usuario (Login)</label><input value={f.user} onChange={e=>setF({...f, user: e.target.value})} /></div>
+      <div className="form-group"><label>Contraseña</label><input type="password" value={f.pass} onChange={e=>setF({...f, pass: e.target.value})} /></div>
+      <div className="form-group">
+        <label>Rol / Función Principal</label>
+        <select 
+          value={f.role === 'admin' ? 'admin' : (f.es_carga ? 'carga' : (f.es_protocolo ? 'protocolo' : (f.es_rigger ? 'rigger' : 'employee')))} 
+          onChange={e => {
+            const val = e.target.value;
+            if (val === 'admin') {
+              setF({...f, role: 'admin', es_carga: false, es_protocolo: false, es_rigger: false});
+            } else {
+              setF({
+                ...f, 
+                role: 'employee', 
+                es_carga: val === 'carga', 
+                es_protocolo: val === 'protocolo', 
+                es_rigger: val === 'rigger'
+              });
+            }
+          }}
+        >
+          <option value="employee">— Seleccionar —</option>
+          <option value="admin">Administrador</option>
+          <option value="carga">Carga / Descarga</option>
+          <option value="protocolo">Protocolo</option>
+          <option value="rigger">Rigger</option>
+        </select>
+      </div>
+      <div style={{display:'flex', gap: 10, marginTop: 20}}>
+        <button 
+          className="btn btn-primary btn-full" 
+          onClick={()=>onSave({
+            username: f.user, 
+            password: f.pass, 
+            nombre: f.nombre, 
+            apellidos: f.apellidos, 
+            role: f.role,
+            es_carga: f.es_carga,
+            es_protocolo: f.es_protocolo,
+            es_rigger: f.es_rigger
+          })} 
+          disabled={isLoading || !f.nombre || !f.user || !f.pass}
+        >
+          {isLoading ? 'Creando...' : 'Crear Acceso'}
+        </button>
+        <button className="btn btn-secondary" onClick={onCancel} disabled={isLoading}>Cancelar</button>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<MainApp />);
+</script>
+</body>
+</html>
