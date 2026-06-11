@@ -623,19 +623,30 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
   };
 
   const saveEpi = async (epiData) => {
-    if (epiData.id) {
+    // Si tiene ID y no empieza por 'temp_', es una edición de uno existente en DB
+    if (epiData.id && !epiData.id.toString().startsWith('temp_')) {
       setEpisList(p => p.map(e => e.id === epiData.id ? epiData : e));
     } else {
       const tempId = 'temp_' + Date.now();
-      setEpisList(p => [...p, { ...epiData, id: tempId, profile_id: profile.id, isNew: true }]);
+      const newEpi = { ...epiData, id: tempId, profile_id: profile.id, isNew: true };
+      setEpisList(p => [...p, newEpi]);
       
       // Intentar guardar como plantilla global para que aparezca en la "Lista Estándar"
       try {
-        const { id, profile_id, isNew, ...templateData } = epiData;
-        await supabaseClient.from('global_epi_templates').insert([templateData]);
-        console.log('EPI guardado como plantilla global');
+        // Limpiamos campos que no deben ir a la plantilla global
+        const { id, profile_id, isNew, fecha_fabricacion, fecha_caducidad, fecha_compra, ...templateData } = epiData;
+        
+        // Solo guardamos si tiene al menos un nombre
+        if (templateData.epi_nombre) {
+          const { error } = await supabaseClient.from('global_epi_templates').insert([templateData]);
+          if (error) {
+            console.error('Error de Supabase al guardar plantilla:', error);
+          } else {
+            console.log('EPI guardado con éxito en la lista global (plantillas)');
+          }
+        }
       } catch (err) {
-        console.error('Error al guardar plantilla:', err);
+        console.error('Excepción al intentar guardar plantilla global:', err);
       }
     }
     setShowEpiModal(false);
