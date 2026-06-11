@@ -331,30 +331,115 @@ function AuthPage({ toast, onBypass }) {
     const cleanUser = username.trim().toLowerCase();
     const cleanPass = pass.trim();
 
-    // 1. LLAVE MAESTRA PARA SHEILA
-    if (cleanUser === 'sheila' && cleanPass === '123456') {
-      const masterId = '00000000-0000-0000-0000-000000000000';
-      const adminData = { id: masterId, nombre: 'Sheyla Admin', email: 'sheila@admin.com', role: 'admin' };
-      onBypass({ id: masterId }, adminData);
-      setLoading(false);
-      return;
-    }
+    const email = `${cleanUser}@reken.internal`;
 
-    // 2. Login manual buscando en la tabla 'profiles'
     try {
-      const { data, error: sbError } = await supabaseClient
-        .from('profiles')
-        .select('*')
-        .eq('username', cleanUser)
-        .eq('password_manual', cleanPass)
-        .single();
+      // 1. Intentar el login oficial en Supabase Auth
+      const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
+        email: email,
+        password: cleanPass
+      });
 
-      if (sbError || !data) {
-        setError('Usuario o contraseña incorrectos');
+      if (!authError && authData.user) {
+        // Login oficial exitoso. Buscamos el perfil correspondiente
+        const { data: profileData } = await supabaseClient
+          .from('profiles')
+          .select('*')
+          .or(`auth_user_id.eq.${authData.user.id},id.eq.${authData.user.id}`)
+          .single();
+          
+        if (profileData) {
+          if (!profileData.auth_user_id) {
+            await supabaseClient.from('profiles').update({ auth_user_id: authData.user.id }).eq('id', profileData.id);
+            profileData.auth_user_id = authData.user.id;
+          }
+          onBypass(authData.user, profileData);
+        } else {
+          // Si no existe perfil en profiles (ej. Admin recién creado), creamos uno básico
+          const isMasterAdmin = cleanUser === 'sheila';
+          const newProfile = {
+            id: authData.user.id,
+            auth_user_id: authData.user.id,
+            username: cleanUser,
+            nombre: isMasterAdmin ? 'Sheyla Admin' : cleanUser,
+            role: isMasterAdmin ? 'admin' : 'employee'
+          };
+          await supabaseClient.from('profiles').insert(newProfile);
+          onBypass(authData.user, newProfile);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // 2. Si el login oficial falla, verificamos contra el sistema de login manual antiguo para la AUTO-MIGRACIÓN
+      let profileDB = null;
+      let dbError = null;
+
+      if (cleanUser === 'sheila' && cleanPass === '123456') {
+        // Llave maestra de Sheila para el primer login
+        const { data } = await supabaseClient.from('profiles').select('*').eq('username', 'sheila').single();
+        profileDB = data || {
+          id: '00000000-0000-0000-0000-000000000000',
+          username: 'sheila',
+          nombre: 'Sheyla Admin',
+          role: 'admin'
+        };
       } else {
-        onBypass({ id: data.id }, data);
+        const res = await supabaseClient
+          .from('profiles')
+          .select('*')
+          .eq('username', cleanUser)
+          .eq('password_manual', cleanPass)
+          .single();
+        profileDB = res.data;
+        dbError = res.error;
+      }
+
+      if (profileDB) {
+        // La contraseña manual coincide. Creamos la cuenta de Supabase Auth correspondiente (auto-migración)
+        const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({
+          email: email,
+          password: cleanPass,
+          options: {
+            data: {
+              nombre: profileDB.nombre,
+              rol: profileDB.role || 'employee'
+            }
+          }
+        });
+
+        if (!signUpError && signUpData.user) {
+          if (profileDB.id === '00000000-0000-0000-0000-000000000000') {
+            // Perfil de Sheila no existía o era el temporal, lo insertamos
+            const newAdminProfile = {
+              id: signUpData.user.id,
+              auth_user_id: signUpData.user.id,
+              username: 'sheila',
+              nombre: 'Sheyla Admin',
+              role: 'admin',
+              password_manual: '123456'
+            };
+            await supabaseClient.from('profiles').insert(newAdminProfile);
+            onBypass(signUpData.user, newAdminProfile);
+          } else {
+            // Trabajador existente, enlazamos su perfil actual con su nueva cuenta de auth
+            await supabaseClient
+              .from('profiles')
+              .update({ auth_user_id: signUpData.user.id })
+              .eq('id', profileDB.id);
+
+            profileDB.auth_user_id = signUpData.user.id;
+            onBypass(signUpData.user, profileDB);
+          }
+          toast('Tu cuenta ha sido migrada de forma segura', 'success');
+        } else {
+          setError('Error al migrar cuenta: ' + (signUpError?.message || 'inténtalo de nuevo.'));
+        }
+      } else {
+        setError('Usuario o contraseña incorrectos');
       }
     } catch (err) {
+      console.error('Error en login:', err);
       setError('Error de conexión con el servidor');
     }
     setLoading(false);
@@ -2615,11 +2700,21 @@ function MainApp() {
     
     let currentProfile = manualProfile;
     if (!currentProfile) {
-      const { data } = await supabaseClient.from('profiles').select('*').eq('id', uid).single();
+      const { data } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .or(`auth_user_id.eq.${uid},id.eq.${uid}`)
+        .single();
       currentProfile = data;
     }
 
     if (currentProfile) {
+      // Asociamos auth_user_id si no estaba guardado en su perfil (para transición suave)
+      if (!currentProfile.auth_user_id && uid) {
+        await supabaseClient.from('profiles').update({ auth_user_id: uid }).eq('id', currentProfile.id);
+        currentProfile.auth_user_id = uid;
+      }
+      
       setProfile(currentProfile);
       if (currentProfile.role === 'admin') {
         loadEmployees();
@@ -2740,36 +2835,64 @@ function MainApp() {
     };
   }, []);
 
-  // Función para crear empleado (Directo a Tabla, sin Auth)
+  // Función para crear empleado (Registrando en Supabase Auth sin perder la sesión del Admin)
   const addEmployee = async (empData) => {
     setLoading(true);
-    const tempId = crypto.randomUUID();
+    const { url, key } = getSBConfig();
+    
+    try {
+      // 1. Crear un cliente temporal sin persistencia de sesión
+      const tempSupabase = window.supabase.createClient(url, key, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false
+        }
+      });
 
-    const { error: profError } = await supabaseClient.from('profiles').insert({
-      id: tempId,
-      username: empData.username.toLowerCase(),
-      password_manual: empData.password,
-      nombre: empData.nombre,
-      apellidos: empData.apellidos,
-      role: empData.role || 'employee',
-      es_carga: !!empData.es_carga,
-      es_protocolo: !!empData.es_protocolo,
-      es_rigger: !!empData.es_rigger
-    });
+      // 2. Crear al usuario en Supabase Auth
+      const { data: signUpData, error: signUpError } = await tempSupabase.auth.signUp({
+        email: `${empData.username.toLowerCase()}@reken.internal`,
+        password: empData.password,
+        options: {
+          data: {
+            nombre: empData.nombre,
+            rol: empData.role || 'employee'
+          }
+        }
+      });
 
-    if (!profError) {
-      // Ya no cargamos EPIs automáticos, el admin los asignará manualmente desde la ficha
-      console.log('Perfil creado sin EPIs automáticos');
-    }
+      if (signUpError) {
+        throw signUpError;
+      }
 
-    setLoading(false);
-    if (profError) {
-      console.error('Error al crear perfil:', profError);
-      toast('Error al guardar el empleado. Asegúrate de que el usuario no esté repetido.', 'danger');
-    } else {
-      toast('Empleado añadido con éxito', 'success');
+      // 3. Crear el perfil correspondiente en profiles enlazando el ID
+      const tempId = crypto.randomUUID();
+      const { error: profError } = await supabaseClient.from('profiles').insert({
+        id: tempId,
+        auth_user_id: signUpData.user.id,
+        username: empData.username.toLowerCase(),
+        password_manual: empData.password,
+        nombre: empData.nombre,
+        apellidos: empData.apellidos,
+        role: empData.role || 'employee',
+        es_carga: !!empData.es_carga,
+        es_protocolo: !!empData.es_protocolo,
+        es_rigger: !!empData.es_rigger
+      });
+
+      if (profError) {
+        throw profError;
+      }
+
+      toast('Empleado añadido con éxito y registrado de forma segura', 'success');
       loadEmployees();
       setShowAddModal(false);
+    } catch (err) {
+      console.error('Error al añadir empleado:', err);
+      toast('Error al guardar el empleado: ' + (err.message || 'usuario repetido o error de red.'), 'danger');
+    } finally {
+      setLoading(false);
     }
   };
 
