@@ -948,272 +948,274 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
   };
 
   return (
-    <div className="grid-2" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 20}}>
-      <div>
-        <h4 style={{marginBottom: 10, fontSize: 13, color: 'var(--text3)'}}>DATOS PERSONALES</h4>
-        <div className="form-group"><label>Nombre</label><input value={form.nombre||''} onChange={e=>setForm({...form, nombre: e.target.value})} /></div>
-        <div className="form-group"><label>Apellidos</label><input value={form.apellidos||''} onChange={e=>setForm({...form, apellidos: e.target.value})} /></div>
-        
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 10, marginBottom: 15}}>
-          <div className="form-group" style={{marginBottom: 0}}><label>Usuario (Login)</label><input value={form.username||''} onChange={e=>setForm({...form, username: e.target.value.toLowerCase()})} /></div>
-          <div className="form-group" style={{marginBottom: 0}}><label>Contraseña Acceso</label><input value={form.password_manual||''} onChange={e=>setForm({...form, password_manual: e.target.value})} /></div>
-        </div>
-
-        <div className="form-group"><label>CCC (Cotización)</label><input value={form.ccc||''} onChange={e=>setForm({...form, ccc: e.target.value})} /></div>
-        <div className="form-group"><label>Teléfono</label><input value={form.telefono||''} onChange={e=>setForm({...form, telefono: e.target.value})} /></div>
-        
-        <div style={{background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, marginBottom: 15, border: '1px solid var(--border)'}}>
-          <label style={{marginBottom: 10, display:'block'}}>ROL / FUNCIÓN PRINCIPAL</label>
-          <select 
-            value={form.role === 'admin' ? 'admin' : (form.es_carga ? 'carga' : (form.es_protocolo ? 'protocolo' : (form.es_rigger ? 'rigger' : 'employee')))} 
-            disabled={!isAdmin}
-            onChange={e => {
-              const val = e.target.value;
-              if (val === 'admin') {
-                setForm({...form, role: 'admin', es_carga: false, es_protocolo: false, es_rigger: false});
-              } else {
-                setForm({
-                  ...form, 
-                  role: 'employee', 
-                  es_carga: val === 'carga', 
-                  es_protocolo: val === 'protocolo', 
-                  es_rigger: val === 'rigger'
-                });
-              }
-            }}
-            style={{marginBottom: form.role !== 'admin' ? 12 : 0, opacity: isAdmin ? 1 : 0.7, cursor: isAdmin ? 'pointer' : 'not-allowed'}}
-          >
-            <option value="employee">— Seleccionar —</option>
-            <option value="admin">Administrador</option>
-            <option value="carga">Carga / Descarga</option>
-            <option value="protocolo">Protocolo</option>
-            <option value="rigger">Rigger</option>
-          </select>
-
-          {form.role !== 'admin' && (
-            <div style={{marginTop: 5, opacity: isAdmin ? 1 : 0.7}}>
-              <label style={{fontSize: 11, color: 'var(--text3)', marginBottom: 8, display:'block'}}>ESPECIALIDADES ADICIONALES</label>
-              <div style={{display:'flex', flexDirection:'column', gap: 8}}>
-                <label style={{display:'flex', alignItems:'center', gap: 8, cursor: isAdmin ? 'pointer' : 'not-allowed', fontWeight: 'normal', fontSize: 13}}>
-                  <input type="checkbox" checked={!!form.es_carga} disabled={!isAdmin} onChange={e=>setForm({...form, es_carga: e.target.checked})} style={{width:'auto'}} /> Carga / Descarga
-                </label>
-                <label style={{display:'flex', alignItems:'center', gap: 8, cursor: isAdmin ? 'pointer' : 'not-allowed', fontWeight: 'normal', fontSize: 13}}>
-                  <input type="checkbox" checked={!!form.es_protocolo} disabled={!isAdmin} onChange={e=>setForm({...form, es_protocolo: e.target.checked})} style={{width:'auto'}} /> Protocolo
-                </label>
-                <label style={{display:'flex', alignItems:'center', gap: 8, cursor: isAdmin ? 'pointer' : 'not-allowed', fontWeight: 'normal', fontSize: 13}}>
-                  <input type="checkbox" checked={!!form.es_rigger} disabled={!isAdmin} onChange={e=>setForm({...form, es_rigger: e.target.checked})} style={{width:'auto'}} /> Riggers
-                </label>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-      <div>
-        <h4 style={{marginBottom: 10, fontSize: 13, color: 'var(--text3)'}}>DOCUMENTACIÓN Y CADUCIDADES</h4>
-        {renderFileBlock(DOC_CATEGORIES.find(c => c.k === 'dni'))}
-        {renderFileBlock(DOC_CATEGORIES.find(c => c.k === 'tarjeta_sanitaria'))}
-        {DOC_CATEGORIES.filter(c => !c.isPersonal).map(cat => renderFileBlock(cat))}
-
-        {/* SECCIÓN DE OTROS TÍTULOS */}
-        <div style={{marginTop: 25, borderTop: '2px solid var(--border)', paddingTop: 20}}>
-          <h4 style={{marginBottom: 15, fontSize: 13, color: 'var(--accent)'}}>OTROS TÍTULOS Y FORMACIÓN</h4>
+    <>
+      <div className="grid-2" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 20}}>
+        <div>
+          <h4 style={{marginBottom: 10, fontSize: 13, color: 'var(--text3)'}}>DATOS PERSONALES</h4>
+          <div className="form-group"><label>Nombre</label><input value={form.nombre||''} onChange={e=>setForm({...form, nombre: e.target.value})} /></div>
+          <div className="form-group"><label>Apellidos</label><input value={form.apellidos||''} onChange={e=>setForm({...form, apellidos: e.target.value})} /></div>
           
-          <div style={{background: 'var(--bg3)', padding: 15, borderRadius: 8, marginBottom: 20, border: '1px solid var(--border2)'}}>
-            <label style={{fontSize: 12, marginBottom: 10, display:'block'}}>Añadir nuevo título</label>
-            <div style={{display:'flex', flexDirection:'column', gap: 10}}>
-              <input 
-                placeholder="Nombre del título (ej: Manipulador Alimentos)" 
-                value={newTitle.nombre} 
-                onChange={e=>setNewTitle({...newTitle, nombre: e.target.value})} 
-                style={{background: 'var(--bg2)'}}
-              />
-              <div style={{display:'flex', gap: 10}}>
-                <input 
-                  type="date" 
-                  value={newTitle.fecha} 
-                  onChange={e=>setNewTitle({...newTitle, fecha: e.target.value})} 
-                  style={{background: 'var(--bg2)', flex: 1}}
-                />
-                <button className="btn btn-primary" onClick={handleTitleAdd} disabled={!newTitle.nombre}>
-                  <i className="fa-solid fa-plus"></i> Añadir
-                </button>
-              </div>
-            </div>
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 10, marginBottom: 15}}>
+            <div className="form-group" style={{marginBottom: 0}}><label>Usuario (Login)</label><input value={form.username||''} onChange={e=>setForm({...form, username: e.target.value.toLowerCase()})} /></div>
+            <div className="form-group" style={{marginBottom: 0}}><label>Contraseña Acceso</label><input value={form.password_manual||''} onChange={e=>setForm({...form, password_manual: e.target.value})} /></div>
           </div>
 
-          <div style={{display:'flex', flexDirection:'column', gap: 15}}>
-            {titlesList.map(title => {
-              const catKey = `title_${title.id}`;
-              const titleDocs = docsList.filter(d => d.categoria === catKey);
-              const status = title.fecha_caducidad ? getDocStatus(title.fecha_caducidad) : null;
-              
-              return (
-                <div key={title.id} style={{background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid var(--border)'}}>
-                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom: 10}}>
-                    <div>
-                      <div style={{fontWeight: 600, fontSize: 14, color: 'var(--text)'}}>{title.nombre}</div>
-                      {title.fecha_caducidad && (
-                        <div style={{fontSize: 11, marginTop: 4}} className={`doc-status ${status.class}`}>
-                          Caduca: {formatDate(title.fecha_caducidad)} - {status.label}
-                        </div>
-                      )}
-                    </div>
-                    <button onClick={() => deleteTitle(title)} className="btn btn-danger" style={{padding: '4px 8px', fontSize: 11, background:'transparent', border:'none', color:'var(--danger)'}}>
-                      <i className="fa-solid fa-trash-can"></i>
-                    </button>
-                  </div>
+          <div className="form-group"><label>CCC (Cotización)</label><input value={form.ccc||''} onChange={e=>setForm({...form, ccc: e.target.value})} /></div>
+          <div className="form-group"><label>Teléfono</label><input value={form.telefono||''} onChange={e=>setForm({...form, telefono: e.target.value})} /></div>
+          
+          <div style={{background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, marginBottom: 15, border: '1px solid var(--border)'}}>
+            <label style={{marginBottom: 10, display:'block'}}>ROL / FUNCIÓN PRINCIPAL</label>
+            <select 
+              value={form.role === 'admin' ? 'admin' : (form.es_carga ? 'carga' : (form.es_protocolo ? 'protocolo' : (form.es_rigger ? 'rigger' : 'employee')))} 
+              disabled={!isAdmin}
+              onChange={e => {
+                const val = e.target.value;
+                if (val === 'admin') {
+                  setForm({...form, role: 'admin', es_carga: false, es_protocolo: false, es_rigger: false});
+                } else {
+                  setForm({
+                    ...form, 
+                    role: 'employee', 
+                    es_carga: val === 'carga', 
+                    es_protocolo: val === 'protocolo', 
+                    es_rigger: val === 'rigger'
+                  });
+                }
+              }}
+              style={{marginBottom: form.role !== 'admin' ? 12 : 0, opacity: isAdmin ? 1 : 0.7, cursor: isAdmin ? 'pointer' : 'not-allowed'}}
+            >
+              <option value="employee">— Seleccionar —</option>
+              <option value="admin">Administrador</option>
+              <option value="carga">Carga / Descarga</option>
+              <option value="protocolo">Protocolo</option>
+              <option value="rigger">Rigger</option>
+            </select>
 
-                  <div style={{display:'flex', flexDirection:'column', gap: 5, marginBottom: 10}}>
-                    {titleDocs.map(d => (
-                      <div key={d.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--bg3)', padding: '6px 10px', borderRadius: 6, fontSize: 11}}>
-                        <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth: '200px'}}>{d.nombre_archivo}</span>
-                        <div style={{display:'flex', gap: 6}}>
-                          <a href={d.url} target="_blank" className="btn btn-secondary" style={{padding: '3px 7px', fontSize: 10}}><i className="fa-solid fa-eye"></i></a>
-                          <button onClick={()=>deleteDoc(d)} className="btn btn-danger" style={{padding: '3px 7px', fontSize: 10, background:'transparent', border:'none', color:'var(--danger)'}}><i className="fa-solid fa-trash"></i></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div 
-                    className="dropzone"
-                    onClick={() => document.getElementById(`file-${catKey}`).click()}
-                    style={{padding: '8px', borderStyle: 'dashed', borderWidth: '1px'}}
-                  >
-                    <i className={`fa-solid ${uploading === catKey ? 'fa-spinner fa-spin' : 'fa-cloud-arrow-up'}`} style={{fontSize: 14, marginBottom: 4}}></i>
-                    <span style={{fontSize: 9}}>{uploading === catKey ? 'Subiendo...' : 'Subir archivos del título'}</span>
-                    <input 
-                      id={`file-${catKey}`}
-                      type="file" 
-                      multiple
-                      onChange={e=>handleUpload(e.target.files, catKey)} 
-                      style={{display:'none'}} 
-                    />
-                  </div>
+            {form.role !== 'admin' && (
+              <div style={{marginTop: 5, opacity: isAdmin ? 1 : 0.7}}>
+                <label style={{fontSize: 11, color: 'var(--text3)', marginBottom: 8, display:'block'}}>ESPECIALIDADES ADICIONALES</label>
+                <div style={{display:'flex', flexDirection:'column', gap: 8}}>
+                  <label style={{display:'flex', alignItems:'center', gap: 8, cursor: isAdmin ? 'pointer' : 'not-allowed', fontWeight: 'normal', fontSize: 13}}>
+                    <input type="checkbox" checked={!!form.es_carga} disabled={!isAdmin} onChange={e=>setForm({...form, es_carga: e.target.checked})} style={{width:'auto'}} /> Carga / Descarga
+                  </label>
+                  <label style={{display:'flex', alignItems:'center', gap: 8, cursor: isAdmin ? 'pointer' : 'not-allowed', fontWeight: 'normal', fontSize: 13}}>
+                    <input type="checkbox" checked={!!form.es_protocolo} disabled={!isAdmin} onChange={e=>setForm({...form, es_protocolo: e.target.checked})} style={{width:'auto'}} /> Protocolo
+                  </label>
+                  <label style={{display:'flex', alignItems:'center', gap: 8, cursor: isAdmin ? 'pointer' : 'not-allowed', fontWeight: 'normal', fontSize: 13}}>
+                    <input type="checkbox" checked={!!form.es_rigger} disabled={!isAdmin} onChange={e=>setForm({...form, es_rigger: e.target.checked})} style={{width:'auto'}} /> Riggers
+                  </label>
                 </div>
-              );
-            })}
+              </div>
+            )}
           </div>
         </div>
+        <div>
+          <h4 style={{marginBottom: 10, fontSize: 13, color: 'var(--text3)'}}>DOCUMENTACIÓN Y CADUCIDADES</h4>
+          {renderFileBlock(DOC_CATEGORIES.find(c => c.k === 'dni'))}
+          {renderFileBlock(DOC_CATEGORIES.find(c => c.k === 'tarjeta_sanitaria'))}
+          {DOC_CATEGORIES.filter(c => !c.isPersonal).map(cat => renderFileBlock(cat))}
 
-        {/* SECCIÓN DE EPIs */}
-        <div style={{marginTop: 35, borderTop: '2px solid var(--border)', paddingTop: 25, width: '100%', gridColumn: '1 / -1'}}>
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 20, flexWrap:'wrap', gap: 15}}>
-            <h4 style={{fontSize: 15, color: 'var(--accent)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px'}}>
-              <i className="fa-solid fa-shield-halved" style={{marginRight: 8}}></i> Equipos de Protección Individual (EPIs)
-            </h4>
-            <div style={{display:'flex', gap: 12}}>
-              <button className="btn btn-secondary" style={{padding: '7px 15px', fontSize: 12}} onClick={() => setShowDefaultSelector(true)}>
-                <i className="fa-solid fa-list-check"></i> Cargar Lista Estándar
-              </button>
-              <button className="btn btn-primary" style={{padding: '7px 15px', fontSize: 12}} onClick={() => { setEditingEpi(null); setShowEpiModal(true); }}>
-                <i className="fa-solid fa-plus"></i> Nuevo EPI Manual
-              </button>
+          {/* SECCIÓN DE OTROS TÍTULOS */}
+          <div style={{marginTop: 25, borderTop: '2px solid var(--border)', paddingTop: 20}}>
+            <h4 style={{marginBottom: 15, fontSize: 13, color: 'var(--accent)'}}>OTROS TÍTULOS Y FORMACIÓN</h4>
+            
+            <div style={{background: 'var(--bg3)', padding: 15, borderRadius: 8, marginBottom: 20, border: '1px solid var(--border2)'}}>
+              <label style={{fontSize: 12, marginBottom: 10, display:'block'}}>Añadir nuevo título</label>
+              <div style={{display:'flex', flexDirection:'column', gap: 10}}>
+                <input 
+                  placeholder="Nombre del título (ej: Manipulador Alimentos)" 
+                  value={newTitle.nombre} 
+                  onChange={e=>setNewTitle({...newTitle, nombre: e.target.value})} 
+                  style={{background: 'var(--bg2)'}}
+                />
+                <div style={{display:'flex', gap: 10}}>
+                  <input 
+                    type="date" 
+                    value={newTitle.fecha} 
+                    onChange={e=>setNewTitle({...newTitle, fecha: e.target.value})} 
+                    style={{background: 'var(--bg2)', flex: 1}}
+                  />
+                  <button className="btn btn-primary" onClick={handleTitleAdd} disabled={!newTitle.nombre}>
+                    <i className="fa-solid fa-plus"></i> Añadir
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div style={{overflowX: 'auto', background: 'var(--bg2)', borderRadius: 12, border: '1px solid var(--border2)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)'}}>
-            <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 12}}>
-              <thead style={{background: 'var(--bg3)'}}>
-                <tr>
-                  <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Foto</th>
-                  <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>E.P.I. / Modelo</th>
-                  <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Norma CE</th>
-                  <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Referencia / SN</th>
-                  <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Proveedor</th>
-                  <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Fabricación</th>
-                  <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Compra</th>
-                  <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Caducidad</th>
-                  <th style={{padding: '15px 12px', textAlign: 'center', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {episList.length === 0 ? (
-                  <tr><td colSpan="9" style={{padding: 40, textAlign: 'center', color: 'var(--text3)', fontSize: 14}}>No hay EPIs registrados para este empleado</td></tr>
-                ) : episList.map(epi => {
-                  const status = epi.fecha_caducidad ? getDocStatus(epi.fecha_caducidad) : null;
-                  return (
-                    <tr key={epi.id} style={{borderBottom: '1px solid var(--border)', transition: 'background 0.2s'}} className="hover-row">
-                      <td style={{padding: '12px'}}>
-                        {epi.foto_url ? (
-                          <img src={epi.foto_url} style={{width: 45, height: 45, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.05)'}} alt="Foto" onClick={() => setViewingPhoto({url: epi.foto_url, epiId: epi.id})} />
-                        ) : (
-                          <div style={{width: 45, height: 45, background: 'var(--bg3)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', border: '1px dashed var(--border2)'}}>
-                            <i className="fa-solid fa-camera" style={{fontSize: 16}}></i>
+
+            <div style={{display:'flex', flexDirection:'column', gap: 15}}>
+              {titlesList.map(title => {
+                const catKey = `title_${title.id}`;
+                const titleDocs = docsList.filter(d => d.categoria === catKey);
+                const status = title.fecha_caducidad ? getDocStatus(title.fecha_caducidad) : null;
+                
+                return (
+                  <div key={title.id} style={{background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid var(--border)'}}>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom: 10}}>
+                      <div>
+                        <div style={{fontWeight: 600, fontSize: 14, color: 'var(--text)'}}>{title.nombre}</div>
+                        {title.fecha_caducidad && (
+                          <div style={{fontSize: 11, marginTop: 4}} className={`doc-status ${status.class}`}>
+                            Caduca: {formatDate(title.fecha_caducidad)} - {status.label}
                           </div>
                         )}
-                      </td>
-                      <td style={{padding: '12px'}}>
-                        <div style={{fontWeight: 600, color: 'var(--text)'}}>{epi.epi_nombre}</div>
-                        <div style={{fontSize: 11, color: 'var(--text2)'}}>{epi.modelo || 'S/M'}</div>
-                      </td>
-                      <td style={{padding: '12px', color: 'var(--text2)', fontSize: 11}}>{epi.norma_ce || '—'}</td>
-                      <td style={{padding: '12px', color: 'var(--text2)', fontSize: 11}}>{epi.referencia || '—'}</td>
-                      <td style={{padding: '12px', color: 'var(--text2)'}}>{epi.proveedor || '—'}</td>
-                      <td style={{padding: '12px', color: 'var(--text2)', fontSize: 11}}>{formatDate(epi.fecha_fabricacion)}</td>
-                      <td style={{padding: '12px', color: 'var(--text2)', fontSize: 11}}>{formatDate(epi.fecha_compra)}</td>
-                      <td style={{padding: '12px'}}>
-                        {epi.fecha_caducidad ? (
-                          <div className={`doc-status ${status.class}`} style={{fontSize: 10, padding: '4px 10px', display: 'inline-block', borderRadius: 6, fontWeight: 600}}>
-                            {formatDate(epi.fecha_caducidad)}
+                      </div>
+                      <button onClick={() => deleteTitle(title)} className="btn btn-danger" style={{padding: '4px 8px', fontSize: 11, background:'transparent', border:'none', color:'var(--danger)'}}>
+                        <i className="fa-solid fa-trash-can"></i>
+                      </button>
+                    </div>
+
+                    <div style={{display:'flex', flexDirection:'column', gap: 5, marginBottom: 10}}>
+                      {titleDocs.map(d => (
+                        <div key={d.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--bg3)', padding: '6px 10px', borderRadius: 6, fontSize: 11}}>
+                          <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth: '200px'}}>{d.nombre_archivo}</span>
+                          <div style={{display:'flex', gap: 6}}>
+                            <a href={d.url} target="_blank" className="btn btn-secondary" style={{padding: '3px 7px', fontSize: 10}}><i className="fa-solid fa-eye"></i></a>
+                            <button onClick={()=>deleteDoc(d)} className="btn btn-danger" style={{padding: '3px 7px', fontSize: 10, background:'transparent', border:'none', color:'var(--danger)'}}><i className="fa-solid fa-trash"></i></button>
                           </div>
-                        ) : <span style={{color: 'var(--text3)'}}>—</span>}
-                      </td>
-                      <td style={{padding: '12px', textAlign: 'center'}}>
-                        <div style={{display: 'flex', gap: 8, justifyContent: 'center'}}>
-                          <button className="btn btn-secondary" style={{padding: '6px 10px', fontSize: 11, borderRadius: 6}} onClick={() => { setEditingEpi(epi); setShowEpiModal(true); }} title="Editar EPI">
-                            <i className="fa-solid fa-pen"></i>
-                          </button>
-                          <button className="btn btn-danger" style={{padding: '6px 10px', fontSize: 11, borderRadius: 6, background: 'transparent', border: '1px solid transparent'}} onClick={() => deleteEpi(epi.id)} title="Eliminar EPI">
-                            <i className="fa-solid fa-trash"></i>
-                          </button>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      ))}
+                    </div>
+
+                    <div 
+                      className="dropzone"
+                      onClick={() => document.getElementById(`file-${catKey}`).click()}
+                      style={{padding: '8px', borderStyle: 'dashed', borderWidth: '1px'}}
+                    >
+                      <i className={`fa-solid ${uploading === catKey ? 'fa-spinner fa-spin' : 'fa-cloud-arrow-up'}`} style={{fontSize: 14, marginBottom: 4}}></i>
+                      <span style={{fontSize: 9}}>{uploading === catKey ? 'Subiendo...' : 'Subir archivos del título'}</span>
+                      <input 
+                        id={`file-${catKey}`}
+                        type="file" 
+                        multiple
+                        onChange={e=>handleUpload(e.target.files, catKey)} 
+                        style={{display:'none'}} 
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* SECCIÓN DE EPIs (Ancho Completo fuera de grid-2) */}
+      <div style={{marginTop: 35, borderTop: '2px solid var(--border)', paddingTop: 25, width: '100%'}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 20, flexWrap:'wrap', gap: 15}}>
+          <h4 style={{fontSize: 15, color: 'var(--accent)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px'}}>
+            <i className="fa-solid fa-shield-halved" style={{marginRight: 8}}></i> Equipos de Protección Individual (EPIs)
+          </h4>
+          <div style={{display:'flex', gap: 12}}>
+            <button className="btn btn-secondary" style={{padding: '7px 15px', fontSize: 12}} onClick={() => setShowDefaultSelector(true)}>
+              <i className="fa-solid fa-list-check"></i> Cargar Lista Estándar
+            </button>
+            <button className="btn btn-primary" style={{padding: '7px 15px', fontSize: 12}} onClick={() => { setEditingEpi(null); setShowEpiModal(true); }}>
+              <i className="fa-solid fa-plus"></i> Nuevo EPI Manual
+            </button>
           </div>
         </div>
         
-        {viewingPhoto && (
-          <PhotoViewerModal 
-            url={viewingPhoto.url} 
-            onCancel={() => setViewingPhoto(null)}
-            onEdit={() => {
-              const epi = episList.find(e => e.id === viewingPhoto.epiId);
-              setEditingEpi(epi);
-              setShowEpiModal(true);
-              setViewingPhoto(null);
-            }}
-            onDelete={handlePhotoDeleteFromViewer}
-          />
-        )}
-
-        {showEpiModal && (
-          <EpiModal 
-            epi={editingEpi} 
-            onSave={saveEpi} 
-            onCancel={() => { setShowEpiModal(false); setEditingEpi(null); }} 
-          />
-        )}
-
-        {showDefaultSelector && (
-          <DefaultEpisSelector 
-            onSave={applyDefaultEpis} 
-            onCancel={() => setShowDefaultSelector(false)} 
-          />
-        )}
-        
-        <div style={{display:'flex', gap: 10, marginTop: 25}}>
-          <button className="btn btn-primary btn-full" onClick={save} disabled={saving}>
-            {saving ? <><i className="fa-solid fa-spinner fa-spin"></i> Guardando...</> : 'Guardar Datos y Fechas'}
-          </button>
-          <button className="btn btn-secondary" onClick={onCancel} disabled={saving}>Cancelar</button>
+        <div style={{overflowX: 'auto', background: 'var(--bg2)', borderRadius: 12, border: '1px solid var(--border2)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)'}}>
+          <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 12}}>
+            <thead style={{background: 'var(--bg3)'}}>
+              <tr>
+                <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Foto</th>
+                <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>E.P.I. / Modelo</th>
+                <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Norma CE</th>
+                <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Referencia / SN</th>
+                <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Proveedor</th>
+                <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Fabricación</th>
+                <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Compra</th>
+                <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Caducidad</th>
+                <th style={{padding: '15px 12px', textAlign: 'center', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {episList.length === 0 ? (
+                <tr><td colSpan="9" style={{padding: 40, textAlign: 'center', color: 'var(--text3)', fontSize: 14}}>No hay EPIs registrados para este empleado</td></tr>
+              ) : episList.map(epi => {
+                const status = epi.fecha_caducidad ? getDocStatus(epi.fecha_caducidad) : null;
+                return (
+                  <tr key={epi.id} style={{borderBottom: '1px solid var(--border)', transition: 'background 0.2s'}} className="hover-row">
+                    <td style={{padding: '12px'}}>
+                      {epi.foto_url ? (
+                        <img src={epi.foto_url} style={{width: 45, height: 45, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.05)'}} alt="Foto" onClick={() => setViewingPhoto({url: epi.foto_url, epiId: epi.id})} />
+                      ) : (
+                        <div style={{width: 45, height: 45, background: 'var(--bg3)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', border: '1px dashed var(--border2)'}}>
+                          <i className="fa-solid fa-camera" style={{fontSize: 16}}></i>
+                        </div>
+                      )}
+                    </td>
+                    <td style={{padding: '12px'}}>
+                      <div style={{fontWeight: 600, color: 'var(--text)'}}>{epi.epi_nombre}</div>
+                      <div style={{fontSize: 11, color: 'var(--text2)'}}>{epi.modelo || 'S/M'}</div>
+                    </td>
+                    <td style={{padding: '12px', color: 'var(--text2)', fontSize: 11}}>{epi.norma_ce || '—'}</td>
+                    <td style={{padding: '12px', color: 'var(--text2)', fontSize: 11}}>{epi.referencia || '—'}</td>
+                    <td style={{padding: '12px', color: 'var(--text2)'}}>{epi.proveedor || '—'}</td>
+                    <td style={{padding: '12px', color: 'var(--text2)', fontSize: 11}}>{formatDate(epi.fecha_fabricacion)}</td>
+                    <td style={{padding: '12px', color: 'var(--text2)', fontSize: 11}}>{formatDate(epi.fecha_compra)}</td>
+                    <td style={{padding: '12px'}}>
+                      {epi.fecha_caducidad ? (
+                        <div className={`doc-status ${status.class}`} style={{fontSize: 10, padding: '4px 10px', display: 'inline-block', borderRadius: 6, fontWeight: 600}}>
+                          {formatDate(epi.fecha_caducidad)}
+                        </div>
+                      ) : <span style={{color: 'var(--text3)'}}>—</span>}
+                    </td>
+                    <td style={{padding: '12px', textAlign: 'center'}}>
+                      <div style={{display: 'flex', gap: 8, justifyContent: 'center'}}>
+                        <button className="btn btn-secondary" style={{padding: '6px 10px', fontSize: 11, borderRadius: 6}} onClick={() => { setEditingEpi(epi); setShowEpiModal(true); }} title="Editar EPI">
+                          <i className="fa-solid fa-pen"></i>
+                        </button>
+                        <button className="btn btn-danger" style={{padding: '6px 10px', fontSize: 11, borderRadius: 6, background: 'transparent', border: '1px solid transparent'}} onClick={() => deleteEpi(epi.id)} title="Eliminar EPI">
+                          <i className="fa-solid fa-trash"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
-    </div>
+      
+      {viewingPhoto && (
+        <PhotoViewerModal 
+          url={viewingPhoto.url} 
+          onCancel={() => setViewingPhoto(null)}
+          onEdit={() => {
+            const epi = episList.find(e => e.id === viewingPhoto.epiId);
+            setEditingEpi(epi);
+            setShowEpiModal(true);
+            setViewingPhoto(null);
+          }}
+          onDelete={handlePhotoDeleteFromViewer}
+        />
+      )}
+
+      {showEpiModal && (
+        <EpiModal 
+          epi={editingEpi} 
+          onSave={saveEpi} 
+          onCancel={() => { setShowEpiModal(false); setEditingEpi(null); }} 
+        />
+      )}
+
+      {showDefaultSelector && (
+        <DefaultEpisSelector 
+          onSave={applyDefaultEpis} 
+          onCancel={() => setShowDefaultSelector(false)} 
+        />
+      )}
+      
+      <div style={{display:'flex', gap: 10, marginTop: 25}}>
+        <button className="btn btn-primary btn-full" onClick={save} disabled={saving}>
+          {saving ? <><i className="fa-solid fa-spinner fa-spin"></i> Guardando...</> : 'Guardar Datos y Fechas'}
+        </button>
+        <button className="btn btn-secondary" onClick={onCancel} disabled={saving}>Cancelar</button>
+      </div>
+    </>
   );
 }
 
