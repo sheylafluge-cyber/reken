@@ -1216,7 +1216,7 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
         </div>
       </div>
       
-      {viewingPhoto && (
+      {viewingPhoto && ReactDOM.createPortal(
         <PhotoViewerModal 
           url={viewingPhoto.url} 
           onCancel={() => setViewingPhoto(null)}
@@ -1227,22 +1227,25 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
             setViewingPhoto(null);
           }}
           onDelete={handlePhotoDeleteFromViewer}
-        />
+        />,
+        document.body
       )}
 
-      {showEpiModal && (
+      {showEpiModal && ReactDOM.createPortal(
         <EpiModal 
           epi={editingEpi} 
           onSave={saveEpi} 
           onCancel={() => { setShowEpiModal(false); setEditingEpi(null); }} 
-        />
+        />,
+        document.body
       )}
 
-      {showDefaultSelector && (
+      {showDefaultSelector && ReactDOM.createPortal(
         <DefaultEpisSelector 
           onSave={applyDefaultEpis} 
           onCancel={() => setShowDefaultSelector(false)} 
-        />
+        />,
+        document.body
       )}
       
       <div style={{display:'flex', gap: 10, marginTop: 25}}>
