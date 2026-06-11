@@ -532,6 +532,11 @@ function DefaultEpisSelector({ onSave, onCancel }) {
                     }}
                   >
                     <i className={isSelected ? "fa-solid fa-circle-check" : "fa-regular fa-circle"} style={{color: isSelected ? 'var(--accent)' : 'var(--text3)', fontSize: 18}}></i>
+                    
+                    {epi.foto_url && (
+                      <img src={epi.foto_url} style={{width: 35, height: 35, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)'}} alt="EPI" />
+                    )}
+                    
                     <div style={{flex: 1}}>
                       <div style={{fontSize: 13, fontWeight: 600}}>{epi.epi_nombre}</div>
                       <div style={{fontSize: 11, color: 'var(--text2)'}}>{epi.modelo} {epi.proveedor ? `· ${epi.proveedor}` : ''}</div>
@@ -558,6 +563,38 @@ function DefaultEpisSelector({ onSave, onCancel }) {
   );
 }
 
+function PhotoViewerModal({ url, onEdit, onDelete, onCancel }) {
+  return (
+    <div className="modal-overlay" style={{zIndex: 400}}>
+      <div className="modal" style={{maxWidth: 700, background: 'transparent', border: 'none', boxShadow: 'none'}}>
+        <div style={{position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20}}>
+          <button className="btn" style={{position: 'absolute', top: -40, right: 0, background: 'rgba(0,0,0,0.5)', color: 'white', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center'}} onClick={onCancel}>
+            <i className="fa-solid fa-xmark"></i>
+          </button>
+          
+          <img 
+            src={url} 
+            style={{maxWidth: '100%', maxHeight: '75vh', borderRadius: 12, boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '4px solid white'}} 
+            alt="EPI Full" 
+          />
+          
+          <div style={{display: 'flex', gap: 12}}>
+            <button className="btn btn-primary" onClick={onEdit} style={{padding: '10px 25px'}}>
+              <i className="fa-solid fa-pen"></i> Editar Datos
+            </button>
+            <button className="btn btn-danger" onClick={onDelete} style={{padding: '10px 25px', background: 'var(--danger)', color: 'white'}}>
+              <i className="fa-solid fa-trash"></i> Eliminar Foto
+            </button>
+            <button className="btn btn-secondary" onClick={onCancel} style={{padding: '10px 25px'}}>
+              Cerrar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EpiModal({ epi, onSave, onCancel }) {
   const [f, setF] = useState(epi || { 
     epi_nombre: '', modelo: '', referencia: '', norma_ce: '', 
@@ -569,62 +606,116 @@ function EpiModal({ epi, onSave, onCancel }) {
   const handlePhotoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, sube solo archivos de imagen.');
+      return;
+    }
+
     setUploading(true);
     try {
       const fileName = `epi_${Date.now()}_${Math.random().toString(36).substring(7)}`;
       const { error: uploadError } = await supabaseClient.storage.from('documentos').upload(fileName, file);
       if (uploadError) throw uploadError;
+      
       const { data: { publicUrl } } = supabaseClient.storage.from('documentos').getPublicUrl(fileName);
       setF({ ...f, foto_url: publicUrl });
     } catch (err) {
       console.error('Error al subir foto:', err);
-      alert('Error al subir la imagen');
+      alert('Error técnico al subir la imagen. Verifica tu conexión.');
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <div className="modal-overlay" style={{zIndex: 200}}>
-      <div className="modal" style={{maxWidth: 550}}>
+    <div className="modal-overlay" style={{zIndex: 350}}>
+      <div className="modal" style={{maxWidth: 600}}>
         <div className="modal-header">
-          <h2>{epi ? 'Editar EPI' : 'Nuevo EPI'}</h2>
+          <h2>{epi ? 'Editar Equipo' : 'Nuevo Equipo'}</h2>
           <button className="btn btn-secondary" onClick={onCancel}><i className="fa-solid fa-xmark"></i></button>
         </div>
         <div className="modal-body">
-          <div className="grid-2" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 15}}>
-            <div className="form-group" style={{gridColumn: 'span 2'}}><label>Nombre EPI</label><input value={f.epi_nombre} onChange={e=>setF({...f, epi_nombre: e.target.value})} placeholder="Arnés, Casco..." /></div>
-            <div className="form-group"><label>Modelo</label><input value={f.modelo} onChange={e=>setF({...f, modelo: e.target.value})} /></div>
-            <div className="form-group"><label>Referencia / S/N</label><input value={f.referencia} onChange={e=>setF({...f, referencia: e.target.value})} /></div>
-            <div className="form-group"><label>Norma CE</label><input value={f.norma_ce} onChange={e=>setF({...f, norma_ce: e.target.value})} /></div>
-            <div className="form-group"><label>Proveedor</label><input value={f.proveedor} onChange={e=>setF({...f, proveedor: e.target.value})} /></div>
-            <div className="form-group"><label>Fecha Compra</label><input type="date" value={f.fecha_compra||''} onChange={e=>setF({...f, fecha_compra: e.target.value})} /></div>
-            <div className="form-group"><label>Fecha Fabricación</label><input type="date" value={f.fecha_fabricacion||''} onChange={e=>setF({...f, fecha_fabricacion: e.target.value})} /></div>
-            <div className="form-group"><label>Fecha Caducidad</label><input type="date" value={f.fecha_caducidad||''} onChange={e=>setF({...f, fecha_caducidad: e.target.value})} /></div>
-            
-            <div className="form-group" style={{gridColumn: 'span 2'}}>
-              <label>Fotografía del EPI</label>
-              <div style={{display: 'flex', gap: 10, alignItems: 'center'}}>
-                {f.foto_url ? (
-                  <div style={{position: 'relative'}}>
-                    <img src={f.foto_url} style={{width: 50, height: 50, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)'}} alt="EPI" />
-                    <button onClick={() => setF({...f, foto_url: ''})} style={{position: 'absolute', top: -5, right: -5, background: 'var(--danger)', color: 'white', border: 'none', borderRadius: '50%', width: 18, height: 18, fontSize: 10, cursor: 'pointer'}}><i className="fa-solid fa-xmark"></i></button>
+          <div style={{display: 'flex', gap: 20, marginBottom: 20, flexWrap: 'wrap'}}>
+            {/* ZONA DE CARGA DE FOTO DESTACADA */}
+            <div style={{flex: '1 1 200px', display: 'flex', flexDirection: 'column', gap: 10}}>
+              <label style={{fontSize: 12, fontWeight: 700, color: 'var(--text2)'}}>FOTOGRAFÍA DEL EQUIPO</label>
+              <div 
+                style={{
+                  width: '100%', 
+                  aspectRatio: '1', 
+                  background: 'var(--bg3)', 
+                  borderRadius: 12, 
+                  border: '2px dashed var(--border2)', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  cursor: 'pointer'
+                }}
+                onClick={() => document.getElementById('epi-photo-input').click()}
+              >
+                {uploading ? (
+                  <div style={{textAlign: 'center'}}>
+                    <i className="fa-solid fa-circle-notch fa-spin" style={{fontSize: 30, color: 'var(--accent)', marginBottom: 10}}></i>
+                    <div style={{fontSize: 11}}>Subiendo...</div>
                   </div>
+                ) : f.foto_url ? (
+                  <>
+                    <img src={f.foto_url} style={{width: '100%', height: '100%', objectFit: 'cover'}} alt="Preview" />
+                    <div style={{position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s'}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0}>
+                      <i className="fa-solid fa-camera" style={{color: 'white', fontSize: 24}}></i>
+                      <span style={{color: 'white', fontSize: 12, fontWeight: 600, marginLeft: 8}}>Cambiar Foto</span>
+                    </div>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setF({...f, foto_url: ''}); }} 
+                      style={{position: 'absolute', top: 10, right: 10, background: 'var(--danger)', color: 'white', border: 'none', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.2)'}}
+                      title="Eliminar foto"
+                    >
+                      <i className="fa-solid fa-trash-can" style={{fontSize: 12}}></i>
+                    </button>
+                  </>
                 ) : (
-                  <div style={{width: 50, height: 50, background: 'var(--bg3)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)'}}>
-                    <i className="fa-solid fa-camera" style={{fontSize: 20}}></i>
-                  </div>
+                  <>
+                    <i className="fa-solid fa-camera-retro" style={{fontSize: 40, color: 'var(--text3)', marginBottom: 12}}></i>
+                    <div style={{fontSize: 13, fontWeight: 600, color: 'var(--text2)'}}>Haz clic para subir foto</div>
+                    <div style={{fontSize: 11, color: 'var(--text3)', marginTop: 4}}>JPG, PNG (Máx 5MB)</div>
+                  </>
                 )}
-                <label className="btn btn-secondary" style={{margin:0, padding: '8px 12px', fontSize: 12, cursor: 'pointer'}}>
-                  {uploading ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-upload"></i>} Subir Foto
-                  <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{display: 'none'}} />
-                </label>
+                <input id="epi-photo-input" type="file" accept="image/*" onChange={handlePhotoUpload} style={{display: 'none'}} />
               </div>
             </div>
+
+            {/* CAMPOS PRINCIPALES */}
+            <div style={{flex: '2 1 300px', display: 'flex', flexDirection: 'column', gap: 15}}>
+              <div className="form-group" style={{marginBottom: 0}}>
+                <label>Nombre del EPI</label>
+                <input value={f.epi_nombre} onChange={e=>setF({...f, epi_nombre: e.target.value})} placeholder="Ej: Arnés Anticaídas, Casco..." />
+              </div>
+              <div className="grid-2" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12}}>
+                <div className="form-group" style={{marginBottom: 0}}><label>Modelo</label><input value={f.modelo} onChange={e=>setF({...f, modelo: e.target.value})} /></div>
+                <div className="form-group" style={{marginBottom: 0}}><label>Norma CE</label><input value={f.norma_ce} onChange={e=>setF({...f, norma_ce: e.target.value})} /></div>
+              </div>
+              <div className="form-group" style={{marginBottom: 0}}><label>Proveedor</label><input value={f.proveedor} onChange={e=>setF({...f, proveedor: e.target.value})} /></div>
+              <div className="form-group" style={{marginBottom: 0}}><label>Referencia / Número de Serie</label><input value={f.referencia} onChange={e=>setF({...f, referencia: e.target.value})} /></div>
+            </div>
           </div>
-          <div style={{display:'flex', gap: 10, marginTop: 20}}>
-            <button className="btn btn-primary btn-full" onClick={() => onSave(f)}>Guardar EPI</button>
-            <button className="btn btn-secondary" onClick={onCancel}>Cancelar</button>
+
+          {/* FECHAS */}
+          <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 15, background: 'var(--bg3)', padding: 15, borderRadius: 12}}>
+            <div className="form-group" style={{marginBottom: 0}}><label>Fecha Fabricación</label><input type="date" value={f.fecha_fabricacion||''} onChange={e=>setF({...f, fecha_fabricacion: e.target.value})} /></div>
+            <div className="form-group" style={{marginBottom: 0}}><label>Fecha Compra</label><input type="date" value={f.fecha_compra||''} onChange={e=>setF({...f, fecha_compra: e.target.value})} /></div>
+            <div className="form-group" style={{marginBottom: 0}}><label>Fecha Caducidad</label><input type="date" value={f.fecha_caducidad||''} onChange={e=>setF({...f, fecha_caducidad: e.target.value})} /></div>
+          </div>
+
+          <div style={{display: 'flex', gap: 10, marginTop: 25}}>
+            <button className="btn btn-primary btn-full" onClick={() => onSave(f)} style={{height: 45, fontSize: 15}}>
+              <i className="fa-solid fa-floppy-disk"></i> Guardar Equipo
+            </button>
+            <button className="btn btn-secondary" onClick={onCancel} style={{height: 45, fontSize: 15}}>Cancelar</button>
           </div>
         </div>
       </div>
@@ -642,6 +733,7 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
   const [showEpiModal, setShowEpiModal] = useState(false);
   const [showDefaultSelector, setShowDefaultSelector] = useState(false);
   const [editingEpi, setEditingEpi] = useState(null);
+  const [viewingPhoto, setViewingPhoto] = useState(null); // {url, epiId}
   const [saving, setSaving] = useState(false);
 
   const loadDocs = useCallback(async () => {
@@ -692,6 +784,13 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
     }
     setShowEpiModal(false);
     setEditingEpi(null);
+  };
+
+  const handlePhotoDeleteFromViewer = () => {
+    if (!confirm('¿Seguro que quieres eliminar la fotografía de este equipo?')) return;
+    const epiId = viewingPhoto.epiId;
+    setEpisList(p => p.map(e => e.id === epiId ? { ...e, foto_url: '', isNew: true } : e));
+    setViewingPhoto(null);
   };
 
   const deleteEpi = (id) => {
@@ -1037,7 +1136,7 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
                     <tr key={epi.id} style={{borderBottom: '1px solid var(--border)', transition: 'background 0.2s'}} className="hover-row">
                       <td style={{padding: '12px'}}>
                         {epi.foto_url ? (
-                          <img src={epi.foto_url} style={{width: 45, height: 45, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.05)'}} alt="Foto" onClick={() => window.open(epi.foto_url, '_blank')} />
+                          <img src={epi.foto_url} style={{width: 45, height: 45, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.05)'}} alt="Foto" onClick={() => setViewingPhoto({url: epi.foto_url, epiId: epi.id})} />
                         ) : (
                           <div style={{width: 45, height: 45, background: 'var(--bg3)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', border: '1px dashed var(--border2)'}}>
                             <i className="fa-solid fa-camera" style={{fontSize: 16}}></i>
@@ -1078,6 +1177,20 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
           </div>
         </div>
         
+        {viewingPhoto && (
+          <PhotoViewerModal 
+            url={viewingPhoto.url} 
+            onCancel={() => setViewingPhoto(null)}
+            onEdit={() => {
+              const epi = episList.find(e => e.id === viewingPhoto.epiId);
+              setEditingEpi(epi);
+              setShowEpiModal(true);
+              setViewingPhoto(null);
+            }}
+            onDelete={handlePhotoDeleteFromViewer}
+          />
+        )}
+
         {showEpiModal && (
           <EpiModal 
             epi={editingEpi} 
