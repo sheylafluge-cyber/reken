@@ -1797,11 +1797,13 @@ function MainApp() {
     } else {
       const { data: titles } = await supabaseClient.from('employee_titles').select('*');
       const { data: epis } = await supabaseClient.from('employee_epis').select('*');
+      console.log('EPIs totales cargados de DB:', epis?.length);
       const empsWithAll = (profs || []).map(p => ({
         ...p,
         custom_titles: (titles || []).filter(t => t.profile_id === p.id),
         epis: (epis || []).filter(e => e.profile_id === p.id)
       }));
+      console.log('Empleados procesados con sus EPIs:', empsWithAll.length);
       setEmployees(empsWithAll);
     }
   };
