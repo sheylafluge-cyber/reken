@@ -924,6 +924,43 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
         }
       }
 
+      // 4. Añadir Marca de Agua a todas las páginas (Logo de la empresa)
+      try {
+        const logoImg = await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error("No se pudo cargar el logo para la marca de agua."));
+          img.src = "Captura de pantalla 2026-06-11 141703.png";
+        });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = logoImg.width;
+        canvas.height = logoImg.height;
+        const ctx = canvas.getContext('2d');
+        ctx.globalAlpha = 0.12; // Ajusta la opacidad de la marca de agua (0.0 a 1.0)
+        ctx.drawImage(logoImg, 0, 0);
+        const watermarkBase64 = canvas.toDataURL('image/png');
+
+        const pageCount = pdf.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+          pdf.setPage(i);
+          const pageWidth = pdf.internal.pageSize.getWidth();
+          const pageHeight = pdf.internal.pageSize.getHeight();
+          
+          // Definir tamaño de la marca de agua en el PDF (ejemplo: 120 mm de ancho)
+          const logoWidth = 120;
+          const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
+          
+          // Centrar en la página
+          const x = (pageWidth - logoWidth) / 2;
+          const y = (pageHeight - logoHeight) / 2;
+          
+          pdf.addImage(watermarkBase64, 'PNG', x, y, logoWidth, logoHeight, undefined, 'FAST');
+        }
+      } catch (watermarkErr) {
+        console.error('Error al aplicar la marca de agua:', watermarkErr);
+      }
+
       pdf.save(`FICHA_${profile.nombre.toUpperCase()}_${profile.apellidos?.toUpperCase() || ''}.pdf`);
       toast('Dossier generado correctamente', 'success');
     } catch (err) {
