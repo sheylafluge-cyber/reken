@@ -1141,14 +1141,16 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
           <h4 style={{fontSize: 15, color: 'var(--accent)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px'}}>
             <i className="fa-solid fa-shield-halved" style={{marginRight: 8}}></i> Equipos de Protección Individual (EPIs)
           </h4>
-          <div style={{display:'flex', gap: 12}}>
-            <button className="btn btn-secondary" style={{padding: '7px 15px', fontSize: 12}} onClick={() => setShowDefaultSelector(true)}>
-              <i className="fa-solid fa-list-check"></i> Cargar Lista Estándar
-            </button>
-            <button className="btn btn-primary" style={{padding: '7px 15px', fontSize: 12}} onClick={() => { setEditingEpi(null); setShowEpiModal(true); }}>
-              <i className="fa-solid fa-plus"></i> Nuevo EPI Manual
-            </button>
-          </div>
+          {isAdmin && (
+            <div style={{display:'flex', gap: 12}}>
+              <button className="btn btn-secondary" style={{padding: '7px 15px', fontSize: 12}} onClick={() => setShowDefaultSelector(true)}>
+                <i className="fa-solid fa-list-check"></i> Cargar Lista Estándar
+              </button>
+              <button className="btn btn-primary" style={{padding: '7px 15px', fontSize: 12}} onClick={() => { setEditingEpi(null); setShowEpiModal(true); }}>
+                <i className="fa-solid fa-plus"></i> Nuevo EPI Manual
+              </button>
+            </div>
+          )}
         </div>
         
         <div style={{overflowX: 'auto', background: 'var(--bg2)', borderRadius: 12, border: '1px solid var(--border2)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)'}}>
@@ -1163,12 +1165,12 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
                 <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Fabricación</th>
                 <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Compra</th>
                 <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Caducidad</th>
-                <th style={{padding: '15px 12px', textAlign: 'center', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Acciones</th>
+                {isAdmin && <th style={{padding: '15px 12px', textAlign: 'center', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Acciones</th>}
               </tr>
             </thead>
             <tbody>
               {episList.length === 0 ? (
-                <tr><td colSpan="9" style={{padding: 40, textAlign: 'center', color: 'var(--text3)', fontSize: 14}}>No hay EPIs registrados para este empleado</td></tr>
+                <tr><td colSpan={isAdmin ? 9 : 8} style={{padding: 40, textAlign: 'center', color: 'var(--text3)', fontSize: 14}}>No hay EPIs registrados para este empleado</td></tr>
               ) : episList.map(epi => {
                 const status = epi.fecha_caducidad ? getDocStatus(epi.fecha_caducidad) : null;
                 return (
@@ -1198,16 +1200,18 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
                         </div>
                       ) : <span style={{color: 'var(--text3)'}}>—</span>}
                     </td>
-                    <td style={{padding: '12px', textAlign: 'center'}}>
-                      <div style={{display: 'flex', gap: 8, justifyContent: 'center'}}>
-                        <button className="btn btn-secondary" style={{padding: '6px 10px', fontSize: 11, borderRadius: 6}} onClick={() => { setEditingEpi(epi); setShowEpiModal(true); }} title="Editar EPI">
-                          <i className="fa-solid fa-pen"></i>
-                        </button>
-                        <button className="btn btn-danger" style={{padding: '6px 10px', fontSize: 11, borderRadius: 6, background: 'transparent', border: '1px solid transparent'}} onClick={() => deleteEpi(epi.id)} title="Eliminar EPI">
-                          <i className="fa-solid fa-trash"></i>
-                        </button>
-                      </div>
-                    </td>
+                    {isAdmin && (
+                      <td style={{padding: '12px', textAlign: 'center'}}>
+                        <div style={{display: 'flex', gap: 8, justifyContent: 'center'}}>
+                          <button className="btn btn-secondary" style={{padding: '6px 10px', fontSize: 11, borderRadius: 6}} onClick={() => { setEditingEpi(epi); setShowEpiModal(true); }} title="Editar EPI">
+                            <i className="fa-solid fa-pen"></i>
+                          </button>
+                          <button className="btn btn-danger" style={{padding: '6px 10px', fontSize: 11, borderRadius: 6, background: 'transparent', border: '1px solid transparent'}} onClick={() => deleteEpi(epi.id)} title="Eliminar EPI">
+                            <i className="fa-solid fa-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
