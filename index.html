@@ -544,11 +544,9 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
 
   const applyDefaultEpis = async () => {
     if (!confirm('¿Quieres cargar la lista estándar de EPIs para este empleado?')) return;
-    setLoading(true);
     const episToInsert = DEFAULT_EPIS.map(epi => ({ ...epi, profile_id: profile.id }));
     await supabaseClient.from('employee_epis').insert(episToInsert);
     await loadDocs();
-    setLoading(false);
     alert('Lista de EPIs cargada con éxito');
   };
 
