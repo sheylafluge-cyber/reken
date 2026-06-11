@@ -2785,7 +2785,7 @@ function MainApp() {
       {selectedEmp && (
         <div 
           className={`modal-overlay ${isEmpModalMinimized ? 'minimized-overlay' : ''}`} 
-          style={isEmpModalMinimized ? { pointerEvents: 'none', background: 'transparent' } : {}}
+          style={isEmpModalMinimized ? { pointerEvents: 'none', background: 'transparent', backdropFilter: 'none' } : {}}
         >
           <div 
             className={`modal ${isEmpModalMinimized ? 'minimized-modal' : ''}`} 
