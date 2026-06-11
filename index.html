@@ -222,7 +222,8 @@ const DOC_CATEGORIES = [
   { k: 'carretilla', l: 'Carretilla', dateField: 'carretilla_fecha' },
   { k: 'reconocimiento', l: 'Reconocimiento Médico', dateField: 'reconocimiento_fecha' },
   { k: 'dni', l: 'DNI', isPersonal: true },
-  { k: 'tarjeta_sanitaria', l: 'Tarjeta Sanitaria', isPersonal: true }
+  { k: 'tarjeta_sanitaria', l: 'Tarjeta Sanitaria', isPersonal: true },
+  { k: 'ccc', l: 'CCC (Certificado Bancario)', isPersonal: true }
 ];
 
 // ─── CONFIGURACIÓN DE SUPABASE (AUTOMATIZADA) ──────────────────────────────
@@ -1049,6 +1050,7 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
           <h4 style={{marginBottom: 10, fontSize: 13, color: 'var(--text3)'}}>DOCUMENTACIÓN Y CADUCIDADES</h4>
           {renderFileBlock(DOC_CATEGORIES.find(c => c.k === 'dni'))}
           {renderFileBlock(DOC_CATEGORIES.find(c => c.k === 'tarjeta_sanitaria'))}
+          {renderFileBlock(DOC_CATEGORIES.find(c => c.k === 'ccc'))}
           {DOC_CATEGORIES.filter(c => !c.isPersonal).map(cat => renderFileBlock(cat))}
 
           {/* SECCIÓN DE OTROS TÍTULOS */}
