@@ -139,6 +139,7 @@
     .doc-status.warn { background: var(--warn-bg); color: var(--warn); }
     .doc-status.expired { background: var(--danger-bg); color: var(--danger); }
     .cat-badge { font-size: 9px; padding: 2px 5px; border-radius: 4px; background: var(--bg3); color: var(--text2); border: 1px solid var(--border); margin-left: 4px; display: inline-block; }
+    .hover-row:hover { background: rgba(255, 51, 153, 0.03) !important; }
 
     /* RESPONSIVE */
     @media (max-width: 768px) {
@@ -699,7 +700,25 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
   };
 
   const applyDefaultEpis = (selectedEpis) => {
-    const newEpis = selectedEpis.map(epi => ({ ...epi, id: 'temp_' + Date.now() + Math.random(), profile_id: profile.id, isNew: true }));
+    const newEpis = selectedEpis.map(epi => {
+      const { 
+        id, // Descartamos el ID de la plantilla
+        fecha_fabricacion_default, 
+        fecha_caducidad_default, 
+        fecha_compra_default, 
+        created_at,
+        ...rest 
+      } = epi;
+      return { 
+        ...rest, 
+        fecha_fabricacion: fecha_fabricacion_default || null,
+        fecha_caducidad: fecha_caducidad_default || null,
+        fecha_compra: fecha_compra_default || null,
+        id: 'temp_' + Date.now() + Math.random(), 
+        profile_id: profile.id, 
+        isNew: true 
+      };
+    });
     setEpisList(p => [...p, ...newEpis]);
     setShowDefaultSelector(false);
   };
@@ -979,64 +998,76 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
         </div>
 
         {/* SECCIÓN DE EPIs */}
-        <div style={{marginTop: 25, borderTop: '2px solid var(--border)', paddingTop: 20}}>
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 15, flexWrap:'wrap', gap: 10}}>
-            <h4 style={{fontSize: 13, color: 'var(--accent)'}}>EQUIPOS DE PROTECCIÓN INDIVIDUAL (EPIs)</h4>
-            <div style={{display:'flex', gap: 10}}>
-              <button className="btn btn-secondary" style={{padding: '5px 12px', fontSize: 11}} onClick={() => setShowDefaultSelector(true)}>
+        <div style={{marginTop: 35, borderTop: '2px solid var(--border)', paddingTop: 25, width: '100%', gridColumn: '1 / -1'}}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 20, flexWrap:'wrap', gap: 15}}>
+            <h4 style={{fontSize: 15, color: 'var(--accent)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px'}}>
+              <i className="fa-solid fa-shield-halved" style={{marginRight: 8}}></i> Equipos de Protección Individual (EPIs)
+            </h4>
+            <div style={{display:'flex', gap: 12}}>
+              <button className="btn btn-secondary" style={{padding: '7px 15px', fontSize: 12}} onClick={() => setShowDefaultSelector(true)}>
                 <i className="fa-solid fa-list-check"></i> Cargar Lista Estándar
               </button>
-              <button className="btn btn-primary" style={{padding: '5px 12px', fontSize: 12}} onClick={() => { setEditingEpi(null); setShowEpiModal(true); }}>
-                <i className="fa-solid fa-plus"></i> Nuevo EPI
+              <button className="btn btn-primary" style={{padding: '7px 15px', fontSize: 12}} onClick={() => { setEditingEpi(null); setShowEpiModal(true); }}>
+                <i className="fa-solid fa-plus"></i> Nuevo EPI Manual
               </button>
             </div>
           </div>
           
-          <div style={{overflowX: 'auto', background: 'var(--bg3)', borderRadius: 8, border: '1px solid var(--border2)'}}>
-            <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 11}}>
-              <thead style={{background: 'rgba(0,0,0,0.05)'}}>
+          <div style={{overflowX: 'auto', background: 'var(--bg2)', borderRadius: 12, border: '1px solid var(--border2)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)'}}>
+            <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 12}}>
+              <thead style={{background: 'var(--bg3)'}}>
                 <tr>
-                  <th style={{padding: '10px', textAlign: 'left'}}>Foto</th>
-                  <th style={{padding: '10px', textAlign: 'left'}}>E.P.I. / Modelo</th>
-                  <th style={{padding: '10px', textAlign: 'left'}}>Referencia</th>
-                  <th style={{padding: '10px', textAlign: 'left'}}>Proveedor</th>
-                  <th style={{padding: '10px', textAlign: 'left'}}>Caducidad</th>
-                  <th style={{padding: '10px', textAlign: 'center'}}>Acciones</th>
+                  <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Foto</th>
+                  <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>E.P.I. / Modelo</th>
+                  <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Norma CE</th>
+                  <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Referencia / SN</th>
+                  <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Proveedor</th>
+                  <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Fabricación</th>
+                  <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Compra</th>
+                  <th style={{padding: '15px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Caducidad</th>
+                  <th style={{padding: '15px 12px', textAlign: 'center', fontWeight: 600, color: 'var(--text2)', borderBottom: '2px solid var(--border)'}}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {episList.length === 0 ? (
-                  <tr><td colSpan="6" style={{padding: 20, textAlign: 'center', color: 'var(--text3)'}}>No hay EPIs registrados</td></tr>
+                  <tr><td colSpan="9" style={{padding: 40, textAlign: 'center', color: 'var(--text3)', fontSize: 14}}>No hay EPIs registrados para este empleado</td></tr>
                 ) : episList.map(epi => {
                   const status = epi.fecha_caducidad ? getDocStatus(epi.fecha_caducidad) : null;
                   return (
-                    <tr key={epi.id} style={{borderTop: '1px solid var(--border)'}}>
-                      <td style={{padding: '10px'}}>
+                    <tr key={epi.id} style={{borderBottom: '1px solid var(--border)', transition: 'background 0.2s'}} className="hover-row">
+                      <td style={{padding: '12px'}}>
                         {epi.foto_url ? (
-                          <img src={epi.foto_url} style={{width: 35, height: 35, objectFit: 'cover', borderRadius: 4, cursor: 'pointer'}} onClick={() => window.open(epi.foto_url, '_blank')} />
+                          <img src={epi.foto_url} style={{width: 45, height: 45, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.05)'}} alt="Foto" onClick={() => window.open(epi.foto_url, '_blank')} />
                         ) : (
-                          <div style={{width: 35, height: 35, background: 'rgba(0,0,0,0.05)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)'}}>
-                            <i className="fa-solid fa-camera" style={{fontSize: 14}}></i>
+                          <div style={{width: 45, height: 45, background: 'var(--bg3)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', border: '1px dashed var(--border2)'}}>
+                            <i className="fa-solid fa-camera" style={{fontSize: 16}}></i>
                           </div>
                         )}
                       </td>
-                      <td style={{padding: '10px'}}>
-                        <div style={{fontWeight: 600}}>{epi.epi_nombre}</div>
-                        <div style={{fontSize: 10, color: 'var(--text2)'}}>{epi.modelo}</div>
+                      <td style={{padding: '12px'}}>
+                        <div style={{fontWeight: 600, color: 'var(--text)'}}>{epi.epi_nombre}</div>
+                        <div style={{fontSize: 11, color: 'var(--text2)'}}>{epi.modelo || 'S/M'}</div>
                       </td>
-                      <td style={{padding: '10px'}}>{epi.referencia}</td>
-                      <td style={{padding: '10px'}}>{epi.proveedor}</td>
-                      <td style={{padding: '10px'}}>
+                      <td style={{padding: '12px', color: 'var(--text2)', fontSize: 11}}>{epi.norma_ce || '—'}</td>
+                      <td style={{padding: '12px', color: 'var(--text2)', fontSize: 11}}>{epi.referencia || '—'}</td>
+                      <td style={{padding: '12px', color: 'var(--text2)'}}>{epi.proveedor || '—'}</td>
+                      <td style={{padding: '12px', color: 'var(--text2)', fontSize: 11}}>{formatDate(epi.fecha_fabricacion)}</td>
+                      <td style={{padding: '12px', color: 'var(--text2)', fontSize: 11}}>{formatDate(epi.fecha_compra)}</td>
+                      <td style={{padding: '12px'}}>
                         {epi.fecha_caducidad ? (
-                          <div className={`doc-status ${status.class}`} style={{fontSize: 9, padding: '2px 6px'}}>
+                          <div className={`doc-status ${status.class}`} style={{fontSize: 10, padding: '4px 10px', display: 'inline-block', borderRadius: 6, fontWeight: 600}}>
                             {formatDate(epi.fecha_caducidad)}
                           </div>
-                        ) : '—'}
+                        ) : <span style={{color: 'var(--text3)'}}>—</span>}
                       </td>
-                      <td style={{padding: '10px', textAlign: 'center'}}>
-                        <div style={{display: 'flex', gap: 5, justifyContent: 'center'}}>
-                          <button className="btn btn-secondary" style={{padding: '4px 8px', fontSize: 10}} onClick={() => { setEditingEpi(epi); setShowEpiModal(true); }}><i className="fa-solid fa-pen"></i></button>
-                          <button className="btn btn-danger" style={{padding: '4px 8px', fontSize: 10, background:'transparent', border:'none', color:'var(--danger)'}} onClick={() => deleteEpi(epi.id)}><i className="fa-solid fa-trash"></i></button>
+                      <td style={{padding: '12px', textAlign: 'center'}}>
+                        <div style={{display: 'flex', gap: 8, justifyContent: 'center'}}>
+                          <button className="btn btn-secondary" style={{padding: '6px 10px', fontSize: 11, borderRadius: 6}} onClick={() => { setEditingEpi(epi); setShowEpiModal(true); }} title="Editar EPI">
+                            <i className="fa-solid fa-pen"></i>
+                          </button>
+                          <button className="btn btn-danger" style={{padding: '6px 10px', fontSize: 11, borderRadius: 6, background: 'transparent', border: '1px solid transparent'}} onClick={() => deleteEpi(epi.id)} title="Eliminar EPI">
+                            <i className="fa-solid fa-trash"></i>
+                          </button>
                         </div>
                       </td>
                     </tr>

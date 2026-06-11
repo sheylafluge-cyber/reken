@@ -86,7 +86,7 @@ BEGIN
 END $$;
 
 -- -----------------------------------------------------------------------------
--- ACTUALIZACIÓN DE TABLAS EXISTENTES (Si ya las tenías creadas)
+-- ACTUALIZACIÓN DE TABLAS EXISTENTES (Ejecutar si ya tienes las tablas creadas)
 -- -----------------------------------------------------------------------------
 ALTER TABLE employee_epis ADD COLUMN IF NOT EXISTS foto_url TEXT;
 ALTER TABLE employee_epis ADD COLUMN IF NOT EXISTS fecha_fabricacion DATE;
@@ -96,24 +96,31 @@ ALTER TABLE employee_epis ADD COLUMN IF NOT EXISTS norma_ce TEXT;
 ALTER TABLE global_epi_templates ADD COLUMN IF NOT EXISTS foto_url TEXT;
 ALTER TABLE global_epi_templates ADD COLUMN IF NOT EXISTS fecha_fabricacion_default DATE;
 ALTER TABLE global_epi_templates ADD COLUMN IF NOT EXISTS fecha_compra_default DATE;
+ALTER TABLE global_epi_templates ADD COLUMN IF NOT EXISTS norma_ce TEXT;
 
 -- -----------------------------------------------------------------------------
--- INSERCIÓN DE EPIs ESTÁNDAR INICIALES
+-- INSERCIÓN DE EPIs ESTÁNDAR CON DATOS COMPLETOS
 -- -----------------------------------------------------------------------------
+-- Arnés
 INSERT INTO global_epi_templates (epi_nombre, modelo, referencia, norma_ce, proveedor, fecha_fabricacion_default) VALUES
-('Arnés anticaídas', '80077B2301340-271', '2777/12558-02/E01-02', '', 'SAFETOP', '2024-10-02'),
-('Arnés anticaídas', '80077B2301340-090', '2777/12558-02/E01-02', '', 'SAFETOP', '2024-10-02'),
-('Arnés anticaídas', 'JE148/0122091781105', 'EN 361:2002, EN358:1999, EN813:2008, EN1497:2007', '', 'FARU', '2022-03-01');
+('Arnés anticaídas', '80077B2301340-271', '2777/12558-02/E01-02', 'EN 361:2002', 'SAFETOP', '2024-10-02'),
+('Arnés anticaídas', '80077B2301340-090', '2777/12558-02/E01-02', 'EN 361:2002', 'SAFETOP', '2024-10-02'),
+('Arnés anticaídas', 'JE148/0122091781105', 'EN 361:2002, EN358:1999, EN813:2008, EN1497:2007', 'EN 361:2002', 'FARU', '2022-03-01');
 
+-- Absorbedores
 INSERT INTO global_epi_templates (epi_nombre, modelo, referencia, norma_ce, proveedor, fecha_caducidad_default, fecha_compra_default) VALUES
 ('Elemento de amarre con Absorbedor', '612413-020JE12207 Steel', '237583472612413-020CE-PC-191211-017-24-3A', 'EN 355:2002, EN 354:2002, EN 362:2005', 'ACCESUS', '2034-10-02', '2024-10-15'),
 ('Elemento de amarre con Absorbedor', '612413-020JE12207 Steel', '237583493612413-020CE-PC-191211-017-24-3A', 'EN 355:2002, EN 354:2002, EN 362:2005', 'ACCESUS', '2034-10-02', '2024-10-15');
 
+-- Cascos
 INSERT INTO global_epi_templates (epi_nombre, modelo, referencia, norma_ce, proveedor) VALUES
 ('Casco con Barboquejo', 'GR - 8492', '8492', 'EN397:2012 +A1:2012, EN50365:2002', 'FARU (AMARILLO)'),
 ('Casco con Barboquejo', 'Climber - Series', '80049', 'EN 397 Industria, E 50365 riesgo eléctrico', 'SAFETOP (AZUL)'),
 ('Suspensión casco', 'Climber - Series', '80657', 'EN 397 Industria, E 50365 riesgo eléctrico', 'SAFETOP (AZUL)'),
-('Barboquejo casco', 'Climber - Series', '80651', 'EN 397 Industria, E 50365 riesgo eléctrico', 'SAFETOP (AZUL)'),
+('Barboquejo casco', 'Climber - Series', '80651', 'EN 397 Industria, E 50365 riesgo eléctrico', 'SAFETOP (AZUL)');
+
+-- Calzado y otros
+INSERT INTO global_epi_templates (epi_nombre, modelo, referencia, norma_ce, proveedor) VALUES
 ('Zapato de seguridad', 'ZION SUPER FERROS3 NEGRO', '734041700', 'EN ISO 20345:2022 S3 HI CI SRC', 'PANTER'),
 ('2 Pares de Guantes', 'PU 1400 ECO-PU', '', 'EN 388:2016+A1:2018', 'JUBA'),
 ('Guante Flor vacuno blanco', '160BGZ0161/291G/12', '', 'EN 388:2016, EN 407:2004, EN 420:2003+A1:2009', 'TOMAS BODERO GROUP'),
