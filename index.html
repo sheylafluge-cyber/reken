@@ -2807,7 +2807,22 @@ function MainApp() {
                       </td>
                       <td style={{padding: 15}}>{e.dni || '—'}</td>
                       <td style={{padding: 15}}>
-                        <button className="btn btn-secondary" onClick={()=>setSelectedEmp(e)}>Ver Ficha</button>
+                        <div style={{display:'flex', gap: 8}}>
+                          <button className="btn btn-secondary" onClick={()=>setSelectedEmp(e)}>Ver Ficha</button>
+                          <button className="btn btn-danger" style={{padding: '8px 12px'}} onClick={async () => {
+                            if(confirm(`¿Seguro que quieres eliminar permanentemente a ${e.nombre} ${e.apellidos || ''}? Se borrarán también todos sus EPIs y documentos.`)) {
+                              const { error } = await supabaseClient.from('profiles').delete().eq('id', e.id);
+                              if (error) {
+                                toast('Error al eliminar empleado', 'danger');
+                              } else {
+                                toast('Empleado eliminado correctamente', 'success');
+                                loadEmployees();
+                              }
+                            }
+                          }}>
+                            <i className="fa-solid fa-trash"></i>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
