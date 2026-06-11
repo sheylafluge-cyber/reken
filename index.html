@@ -334,7 +334,7 @@ function AuthPage({ toast, onBypass }) {
     const email = `${cleanUser}.reken@gmail.com`;
 
     try {
-      // 1. Intentar el login oficial en Supabase Auth
+      // 1. Intentar el login oficial directo en Supabase Auth
       const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
         email: email,
         password: cleanPass
@@ -355,7 +355,7 @@ function AuthPage({ toast, onBypass }) {
           }
           onBypass(authData.user, profileData);
         } else {
-          // Si no existe perfil en profiles (ej. Admin recién creado), creamos uno básico
+          // Si no existe perfil en la tabla profiles (ej. Sheila en su primera entrada), creamos uno básico
           const isMasterAdmin = cleanUser === 'sheila';
           const newProfile = {
             id: authData.user.id,
@@ -366,74 +366,6 @@ function AuthPage({ toast, onBypass }) {
           };
           await supabaseClient.from('profiles').insert(newProfile);
           onBypass(authData.user, newProfile);
-        }
-        setLoading(false);
-        return;
-      }
-
-      // 2. Si el login oficial falla, verificamos contra el sistema de login manual antiguo para la AUTO-MIGRACIÓN
-      let profileDB = null;
-      let dbError = null;
-
-      if (cleanUser === 'sheila' && cleanPass === '123456') {
-        // Llave maestra de Sheila para el primer login
-        const { data } = await supabaseClient.from('profiles').select('*').eq('username', 'sheila').single();
-        profileDB = data || {
-          id: '00000000-0000-0000-0000-000000000000',
-          username: 'sheila',
-          nombre: 'Sheyla Admin',
-          role: 'admin'
-        };
-      } else {
-        const res = await supabaseClient
-          .from('profiles')
-          .select('*')
-          .eq('username', cleanUser)
-          .eq('password_manual', cleanPass)
-          .single();
-        profileDB = res.data;
-        dbError = res.error;
-      }
-
-      if (profileDB) {
-        // La contraseña manual coincide. Creamos la cuenta de Supabase Auth correspondiente (auto-migración)
-        const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({
-          email: email,
-          password: cleanPass,
-          options: {
-            data: {
-              nombre: profileDB.nombre,
-              rol: profileDB.role || 'employee'
-            }
-          }
-        });
-
-        if (!signUpError && signUpData.user) {
-          if (profileDB.id === '00000000-0000-0000-0000-000000000000') {
-            // Perfil de Sheila no existía o era el temporal, lo insertamos
-            const newAdminProfile = {
-              id: signUpData.user.id,
-              auth_user_id: signUpData.user.id,
-              username: 'sheila',
-              nombre: 'Sheyla Admin',
-              role: 'admin',
-              password_manual: '123456'
-            };
-            await supabaseClient.from('profiles').insert(newAdminProfile);
-            onBypass(signUpData.user, newAdminProfile);
-          } else {
-            // Trabajador existente, enlazamos su perfil actual con su nueva cuenta de auth
-            await supabaseClient
-              .from('profiles')
-              .update({ auth_user_id: signUpData.user.id })
-              .eq('id', profileDB.id);
-
-            profileDB.auth_user_id = signUpData.user.id;
-            onBypass(signUpData.user, profileDB);
-          }
-          toast('Tu cuenta ha sido migrada de forma segura', 'success');
-        } else {
-          setError('Error al migrar cuenta: ' + (signUpError?.message || 'inténtalo de nuevo.'));
         }
       } else {
         setError('Usuario o contraseña incorrectos');
