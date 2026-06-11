@@ -2221,15 +2221,38 @@ function MainApp() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [toasts, setToasts] = useState([]);
 
-  // Estados para modal de empleado draggable y minimizable
+  // Sistema de múltiples ventanas minimizadas
+  const [minimizedEmps, setMinimizedEmps] = useState([]);
+
+  // Estados para modal de empleado activo (el que está abierto ahora)
   const [empModalPos, setEmpModalPos] = useState({ x: 0, y: 0 });
-  const [isEmpModalMinimized, setIsEmpModalMinimized] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
+  const handleMinimize = (emp) => {
+    setMinimizedEmps(p => {
+      // Evitar duplicados
+      if (p.find(e => e.id === emp.id)) return p;
+      return [...p, emp];
+    });
+    setSelectedEmp(null);
+  };
+
+  const restoreEmp = (emp) => {
+    // Si ya hay uno abierto, minimizamos el actual primero
+    if (selectedEmp) {
+      setMinimizedEmps(p => {
+        const filtered = p.filter(e => e.id !== emp.id);
+        return [...filtered, selectedEmp];
+      });
+    } else {
+      setMinimizedEmps(p => p.filter(e => e.id !== emp.id));
+    }
+    setSelectedEmp(emp);
+    setEmpModalPos({ x: 0, y: 0 });
+  };
+
   const handleMouseDown = (e) => {
-    if (isEmpModalMinimized) return;
-    // Solo arrastrar desde el header
     if (e.target.closest('.modal-header')) {
       setIsDragging(true);
       setDragOffset({
@@ -2265,14 +2288,6 @@ function MainApp() {
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDragging, dragOffset]);
-
-  // Resetear posición cuando se abre
-  useEffect(() => {
-    if (selectedEmp) {
-      setEmpModalPos({ x: 0, y: 0 });
-      setIsEmpModalMinimized(false);
-    }
-  }, [selectedEmp]);
 
   const sendNotification = async (profileId, title, message, type, isForAdmin = false) => {
     try {
@@ -2863,41 +2878,36 @@ function MainApp() {
         </main>
 
       {selectedEmp && (
-        <div 
-          className={`modal-overlay ${isEmpModalMinimized ? 'minimized-overlay' : ''}`} 
-          style={isEmpModalMinimized ? { pointerEvents: 'none', background: 'transparent', backdropFilter: 'none' } : {}}
-        >
+        <div className="modal-overlay">
           <div 
-            className={`modal ${isEmpModalMinimized ? 'minimized-modal' : ''}`} 
+            className="modal" 
             style={{
               maxWidth: 1000, 
-              transform: isEmpModalMinimized ? 'none' : `translate(${empModalPos.x}px, ${empModalPos.y}px)`,
+              transform: `translate(${empModalPos.x}px, ${empModalPos.y}px)`,
               transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: isEmpModalMinimized ? '0 10px 30px rgba(0,0,0,0.4)' : '',
-              border: isEmpModalMinimized ? '2px solid var(--accent)' : '',
-              position: isEmpModalMinimized ? 'fixed' : 'relative'
+              position: 'relative'
             }}
           >
             <div 
               className="modal-header" 
               onMouseDown={handleMouseDown} 
-              style={{ cursor: isEmpModalMinimized ? 'default' : 'move', userSelect: 'none' }}
+              style={{ cursor: 'move', userSelect: 'none' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
                 <i className="fa-solid fa-user-gear" style={{ color: 'var(--accent)', fontSize: 20 }}></i>
                 <div>
                   <h2 style={{ fontSize: 16 }}>Ficha: {selectedEmp.nombre} {selectedEmp.apellidos || ''}</h2>
-                  {!isEmpModalMinimized && <p style={{ fontSize: 11, color: 'var(--text3)' }}>{selectedEmp.role === 'admin' ? 'Personal de Administración' : 'Personal Operativo'}</p>}
+                  <p style={{ fontSize: 11, color: 'var(--text3)' }}>{selectedEmp.role === 'admin' ? 'Personal de Administración' : 'Personal Operativo'}</p>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button 
                   className="btn btn-secondary" 
                   style={{ width: 32, height: 32, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
-                  onClick={() => setIsEmpModalMinimized(!isEmpModalMinimized)}
-                  title={isEmpModalMinimized ? 'Restaurar' : 'Minimizar'}
+                  onClick={() => handleMinimize(selectedEmp)}
+                  title="Minimizar"
                 >
-                  <i className={`fa-solid ${isEmpModalMinimized ? 'fa-window-maximize' : 'fa-window-minimize'}`}></i>
+                  <i className="fa-solid fa-window-minimize"></i>
                 </button>
                 <button 
                   className="btn btn-secondary" 
@@ -2909,28 +2919,67 @@ function MainApp() {
                 </button>
               </div>
             </div>
-            {!isEmpModalMinimized && (
-              <div className="modal-body">
-                <div className="tabs">
-                  <button className="tab active">Datos</button>
-                </div>
-                <EmployeeForm 
-                  profile={selectedEmp} 
-                  isAdmin={isAdmin} 
-                  onSave={() => { loadEmployees(); setSelectedEmp(null); }} 
-                  onCancel={() => setSelectedEmp(null)} 
-                  sendNotification={sendNotification}
-                  currentUser={profile}
-                />
-                {selectedEmp.role !== 'admin' && (
-                  <div style={{ marginTop: 20 }}>
-                    <h4 style={{ marginBottom: 10, fontSize: 13 }}>DISPONIBILIDAD</h4>
-                    <CalendarView userId={selectedEmp.id} isAdmin={true} toast={toast} />
-                  </div>
-                )}
+            <div className="modal-body">
+              <div className="tabs">
+                <button className="tab active">Datos</button>
               </div>
-            )}
+              <EmployeeForm 
+                profile={selectedEmp} 
+                isAdmin={isAdmin} 
+                onSave={() => { loadEmployees(); setSelectedEmp(null); }} 
+                onCancel={() => setSelectedEmp(null)} 
+                sendNotification={sendNotification}
+                currentUser={profile}
+              />
+              {selectedEmp.role !== 'admin' && (
+                <div style={{ marginTop: 20 }}>
+                  <h4 style={{ marginBottom: 10, fontSize: 13 }}>DISPONIBILIDAD</h4>
+                  <CalendarView userId={selectedEmp.id} isAdmin={true} toast={toast} />
+                </div>
+              )}
+            </div>
           </div>
+        </div>
+      )}
+
+      {/* BARRA DE TAREAS PARA VENTANAS MINIMIZADAS */}
+      {minimizedEmps.length > 0 && (
+        <div style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none' }}>
+          {minimizedEmps.map(emp => (
+            <div 
+              key={emp.id}
+              className="card"
+              onClick={() => restoreEmp(emp)}
+              style={{ 
+                width: 280, 
+                padding: '10px 15px', 
+                margin: 0, 
+                background: 'var(--bg2)', 
+                border: '2px solid var(--accent)', 
+                cursor: 'pointer', 
+                pointerEvents: 'auto',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                animation: 'slideIn 0.3s'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <i className="fa-solid fa-user-gear" style={{ color: 'var(--accent)', fontSize: 16 }}></i>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{emp.nombre} {emp.apellidos}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 5 }}>
+                <i className="fa-solid fa-window-maximize" style={{ color: 'var(--text3)', fontSize: 12 }}></i>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setMinimizedEmps(p => p.filter(ex => ex.id !== emp.id)); }} 
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text3)', cursor: 'pointer', padding: '0 5px' }}
+                >
+                  <i className="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
