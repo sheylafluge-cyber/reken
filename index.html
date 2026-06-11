@@ -219,6 +219,23 @@ const DOC_CATEGORIES = [
   { k: 'tarjeta_sanitaria', l: 'Tarjeta Sanitaria', isPersonal: true }
 ];
 
+const DEFAULT_EPIS = [
+  { epi_nombre: 'Arnés anticaídas', modelo: '80077B2301340-271', referencia: '2777/12558-02/E01-02', norma_ce: '', proveedor: 'SAFETOP', fecha_fabricacion: '2024-10-02' },
+  { epi_nombre: 'Arnés anticaídas', modelo: '80077B2301340-090', referencia: '2777/12558-02/E01-02', norma_ce: '', proveedor: 'SAFETOP', fecha_fabricacion: '2024-10-02' },
+  { epi_nombre: 'Arnés anticaídas', modelo: 'JE148/0122091781105', referencia: 'EN 361:2002, EN358:1999, EN813:2008, EN1497:2007', norma_ce: '', proveedor: 'FARU', fecha_fabricacion: '2022-03-01', fecha_caducidad: '2032-03-01' },
+  { epi_nombre: 'Elemento de amarre con Absorbedor', modelo: '612413-020JE12207 Steel', referencia: '237583472612413-020CE-PC-191211-017-24-3A', norma_ce: 'EN 355:2002, EN 354:2002, EN 362:2005', proveedor: 'ACCESUS', fecha_caducidad: '2034-10-02', fecha_compra: '2024-10-15' },
+  { epi_nombre: 'Elemento de amarre con Absorbedor', modelo: '612413-020JE12207 Steel', referencia: '237583493612413-020CE-PC-191211-017-24-3A', norma_ce: 'EN 355:2002, EN 354:2002, EN 362:2005', proveedor: 'ACCESUS', fecha_caducidad: '2034-10-02', fecha_compra: '2024-10-15' },
+  { epi_nombre: 'Casco con Barboquejo', modelo: 'GR - 8492', referencia: '8492', norma_ce: 'EN397:2012 +A1:2012, EN50365:2002', proveedor: 'FARU (AMARILLO)' },
+  { epi_nombre: 'Casco con Barboquejo', modelo: 'Climber - Series', referencia: '80049', norma_ce: 'EN 397 Industria, E 50365 riesgo eléctrico', proveedor: 'SAFETOP (AZUL)' },
+  { epi_nombre: 'Suspensión casco', modelo: 'Climber - Series', referencia: '80657', norma_ce: 'EN 397 Industria, E 50365 riesgo eléctrico', proveedor: 'SAFETOP (AZUL)' },
+  { epi_nombre: 'Barboquejo casco', modelo: 'Climber - Series', referencia: '80651', norma_ce: 'EN 397 Industria, E 50365 riesgo eléctrico', proveedor: 'SAFETOP (AZUL)' },
+  { epi_nombre: 'Zapato de seguridad', modelo: 'ZION SUPER FERROS3 NEGRO', referencia: '734041700', norma_ce: 'EN ISO 20345:2022 S3 HI CI SRC', proveedor: 'PANTER' },
+  { epi_nombre: '2 Pares de Guantes', modelo: 'PU 1400 ECO-PU', referencia: '', norma_ce: 'EN 388:2016+A1:2018', proveedor: 'JUBA' },
+  { epi_nombre: 'Guante Flor vacuno blanco', modelo: '160BGZ0161/291G/12', referencia: '', norma_ce: 'EN 388:2016, EN 407:2004, EN 420:2003+A1:2009', proveedor: 'TOMAS BODERO GROUP' },
+  { epi_nombre: 'Chaleco reflectante', modelo: '1030C', referencia: '', norma_ce: '89/686/CEE, ISO 20471/2013', proveedor: 'CHINTEX SL' },
+  { epi_nombre: 'Mascarilla', modelo: 'FFP2 NR.50 TLV21700H', referencia: '', norma_ce: 'EN 149 + A1', proveedor: 'SAFETOP' }
+];
+
 // ─── CONFIGURACIÓN DE SUPABASE (AUTOMATIZADA) ──────────────────────────────
 const getSBConfig = () => {
   const config = {
@@ -523,6 +540,16 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
     if (!confirm('¿Seguro que quieres eliminar este EPI?')) return;
     await supabaseClient.from('employee_epis').delete().eq('id', id);
     loadDocs();
+  };
+
+  const applyDefaultEpis = async () => {
+    if (!confirm('¿Quieres cargar la lista estándar de EPIs para este empleado?')) return;
+    setLoading(true);
+    const episToInsert = DEFAULT_EPIS.map(epi => ({ ...epi, profile_id: profile.id }));
+    await supabaseClient.from('employee_epis').insert(episToInsert);
+    await loadDocs();
+    setLoading(false);
+    alert('Lista de EPIs cargada con éxito');
   };
 
   const handleTitleAdd = async () => {
@@ -865,11 +892,16 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
 
         {/* SECCIÓN DE EPIs */}
         <div style={{marginTop: 25, borderTop: '2px solid var(--border)', paddingTop: 20}}>
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 15}}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 15, flexWrap:'wrap', gap: 10}}>
             <h4 style={{fontSize: 13, color: 'var(--accent)'}}>EQUIPOS DE PROTECCIÓN INDIVIDUAL (EPIs)</h4>
-            <button className="btn btn-primary" style={{padding: '5px 12px', fontSize: 12}} onClick={() => { setEditingEpi(null); setShowEpiModal(true); }}>
-              <i className="fa-solid fa-plus"></i> Nuevo EPI
-            </button>
+            <div style={{display:'flex', gap: 10}}>
+              <button className="btn btn-secondary" style={{padding: '5px 12px', fontSize: 11}} onClick={applyDefaultEpis}>
+                <i className="fa-solid fa-list-check"></i> Cargar Lista Estándar
+              </button>
+              <button className="btn btn-primary" style={{padding: '5px 12px', fontSize: 12}} onClick={() => { setEditingEpi(null); setShowEpiModal(true); }}>
+                <i className="fa-solid fa-plus"></i> Nuevo EPI
+              </button>
+            </div>
           </div>
           
           <div style={{overflowX: 'auto', background: 'var(--bg3)', borderRadius: 8, border: '1px solid var(--border2)'}}>
@@ -1881,6 +1913,12 @@ function MainApp() {
       es_protocolo: !!empData.es_protocolo,
       es_rigger: !!empData.es_rigger
     });
+
+    if (!profError) {
+      // Cargar EPIs predeterminados automáticamente
+      const episToInsert = DEFAULT_EPIS.map(epi => ({ ...epi, profile_id: tempId }));
+      await supabaseClient.from('employee_epis').insert(episToInsert);
+    }
 
     setLoading(false);
     if (profError) {
