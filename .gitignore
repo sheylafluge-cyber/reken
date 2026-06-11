@@ -1,0 +1,6 @@
+*.txt
+# Excepto si hay algún txt que sí sea necesario, se puede des-comentar o añadir reglas específicas.
+# Por ahora evitamos subir los scripts de reparación SQL.
+REPARACION_NIVEL_POSTGRES.txt
+RESETEO_TOTAL_Y_FIN_ERROR_500.txt
+SUPER_REPARACION_SUPABASE.txt
