@@ -468,6 +468,69 @@ function CalendarView({ userId, isAdmin, toast }) {
   );
 }
 
+function DefaultEpisSelector({ onSave, onCancel }) {
+  const [selectedIndices, setSelectedIndices] = useState(DEFAULT_EPIS.map((_, i) => i));
+
+  const toggle = (idx) => {
+    if (selectedIndices.includes(idx)) {
+      setSelectedIndices(p => p.filter(i => i !== idx));
+    } else {
+      setSelectedIndices(p => [...p, idx]);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" style={{zIndex: 300}}>
+      <div className="modal" style={{maxWidth: 500}}>
+        <div className="modal-header">
+          <h2>Seleccionar EPIs a añadir</h2>
+          <button className="btn btn-secondary" onClick={onCancel}><i className="fa-solid fa-xmark"></i></button>
+        </div>
+        <div className="modal-body">
+          <p style={{fontSize: 12, color: 'var(--text2)', marginBottom: 15}}>Selecciona los equipos que quieres asignar al trabajador:</p>
+          <div style={{maxHeight: 400, overflowY: 'auto', background: 'var(--bg3)', padding: 10, borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 6}}>
+            {DEFAULT_EPIS.map((epi, i) => {
+              const isSelected = selectedIndices.includes(i);
+              return (
+                <div 
+                  key={i} 
+                  onClick={() => toggle(i)}
+                  style={{
+                    padding: '10px', 
+                    background: isSelected ? 'var(--accent-bg)' : 'var(--bg2)', 
+                    border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12
+                  }}
+                >
+                  <i className={isSelected ? "fa-solid fa-square-check" : "fa-regular fa-square"} style={{color: isSelected ? 'var(--accent)' : 'var(--text3)', fontSize: 18}}></i>
+                  <div>
+                    <div style={{fontSize: 13, fontWeight: 600}}>{epi.epi_nombre}</div>
+                    <div style={{fontSize: 11, color: 'var(--text2)'}}>{epi.modelo} - {epi.proveedor}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{display: 'flex', gap: 10, marginTop: 20}}>
+            <button 
+              className="btn btn-primary btn-full" 
+              onClick={() => onSave(selectedIndices.map(i => DEFAULT_EPIS[i]))}
+              disabled={selectedIndices.length === 0}
+            >
+              Añadir {selectedIndices.length} seleccionados
+            </button>
+            <button className="btn btn-secondary" onClick={onCancel}>Cancelar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EpiModal({ epi, onSave, onCancel }) {
   const [f, setF] = useState(epi || { 
     epi_nombre: '', modelo: '', referencia: '', norma_ce: '', 
@@ -510,6 +573,7 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
   const [uploading, setUploading] = useState(null);
   const [newTitle, setNewTitle] = useState({ nombre: '', fecha: '' });
   const [showEpiModal, setShowEpiModal] = useState(false);
+  const [showDefaultSelector, setShowDefaultSelector] = useState(false);
   const [editingEpi, setEditingEpi] = useState(null);
 
   const loadDocs = useCallback(async () => {
@@ -542,12 +606,12 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
     loadDocs();
   };
 
-  const applyDefaultEpis = async () => {
-    if (!confirm('¿Quieres cargar la lista estándar de EPIs para este empleado?')) return;
-    const episToInsert = DEFAULT_EPIS.map(epi => ({ ...epi, profile_id: profile.id }));
+  const applyDefaultEpis = async (selectedEpis) => {
+    const episToInsert = selectedEpis.map(epi => ({ ...epi, profile_id: profile.id }));
     await supabaseClient.from('employee_epis').insert(episToInsert);
     await loadDocs();
-    alert('Lista de EPIs cargada con éxito');
+    setShowDefaultSelector(false);
+    toast('EPIs añadidos con éxito', 'success');
   };
 
   const handleTitleAdd = async () => {
@@ -893,7 +957,7 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 15, flexWrap:'wrap', gap: 10}}>
             <h4 style={{fontSize: 13, color: 'var(--accent)'}}>EQUIPOS DE PROTECCIÓN INDIVIDUAL (EPIs)</h4>
             <div style={{display:'flex', gap: 10}}>
-              <button className="btn btn-secondary" style={{padding: '5px 12px', fontSize: 11}} onClick={applyDefaultEpis}>
+              <button className="btn btn-secondary" style={{padding: '5px 12px', fontSize: 11}} onClick={() => setShowDefaultSelector(true)}>
                 <i className="fa-solid fa-list-check"></i> Cargar Lista Estándar
               </button>
               <button className="btn btn-primary" style={{padding: '5px 12px', fontSize: 12}} onClick={() => { setEditingEpi(null); setShowEpiModal(true); }}>
@@ -952,6 +1016,13 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
             epi={editingEpi} 
             onSave={saveEpi} 
             onCancel={() => { setShowEpiModal(false); setEditingEpi(null); }} 
+          />
+        )}
+
+        {showDefaultSelector && (
+          <DefaultEpisSelector 
+            onSave={applyDefaultEpis} 
+            onCancel={() => setShowDefaultSelector(false)} 
           />
         )}
         
