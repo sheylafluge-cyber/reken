@@ -2003,9 +2003,22 @@ function GlobalEpisInventory({ isAdmin }) {
     try {
       // 1. Obtener plantillas globales
       const { data: tData } = await supabaseClient.from('global_epi_templates').select('*').order('epi_nombre');
-      setTemplates(tData || []);
+      
+      // Eliminar duplicados visuales en las plantillas por nombre (quedándonos con la más reciente o la primera)
+      const uniqueTemplates = [];
+      const seenNames = new Set();
+      if (tData) {
+        tData.forEach(item => {
+          const name = item.epi_nombre.trim().toLowerCase();
+          if (!seenNames.has(name)) {
+            seenNames.add(name);
+            uniqueTemplates.push(item);
+          }
+        });
+      }
+      setTemplates(uniqueTemplates);
 
-      // 2. Obtener TODAS las asignaciones de EPIs de todos los empleados
+      // 2. Obtener TODAS las asignaciones
       const { data: aData } = await supabaseClient
         .from('employee_epis')
         .select(`
@@ -2033,6 +2046,9 @@ function GlobalEpisInventory({ isAdmin }) {
   const handleSave = async (epiData) => {
     try {
       const { id, created_at, ...cleanData } = epiData;
+      // Normalizar nombre para evitar duplicados
+      if (cleanData.epi_nombre) cleanData.epi_nombre = cleanData.epi_nombre.trim();
+      
       if (id && !id.toString().startsWith('temp_')) {
         await supabaseClient.from('global_epi_templates').update(cleanData).eq('id', id);
         if (cleanData.foto_url) {
