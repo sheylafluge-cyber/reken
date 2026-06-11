@@ -368,7 +368,15 @@ function AuthPage({ toast, onBypass }) {
           onBypass(authData.user, newProfile);
         }
       } else {
-        setError('Usuario o contraseña incorrectos');
+        // Mensajes detallados para diagnóstico
+        const msg = authError?.message || '';
+        if (msg.includes('Invalid login credentials')) {
+          setError('Usuario o contraseña incorrectos');
+        } else if (msg.includes('Email not confirmed')) {
+          setError('Email no confirmado (Ejecuta el script SQL de confirmación)');
+        } else {
+          setError(`Error: ${msg || 'Fallo en el servidor'}`);
+        }
       }
     } catch (err) {
       console.error('Error en login:', err);
