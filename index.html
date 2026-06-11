@@ -454,14 +454,50 @@ function CalendarView({ userId, isAdmin, toast }) {
 function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, currentUser }) {
   const [form, setForm] = useState({...profile});
   const [docsList, setDocsList] = useState([]);
+  const [titlesList, setTitlesList] = useState([]);
   const [uploading, setUploading] = useState(null);
+  const [newTitle, setNewTitle] = useState({ nombre: '', fecha: '' });
 
   const loadDocs = useCallback(async () => {
-    const { data } = await supabaseClient.from('documentos').select('*').eq('profile_id', profile.id);
-    setDocsList(data || []);
+    const { data: docs } = await supabaseClient.from('documentos').select('*').eq('profile_id', profile.id);
+    setDocsList(docs || []);
+    
+    const { data: titles } = await supabaseClient.from('employee_titles').select('*').eq('profile_id', profile.id);
+    setTitlesList(titles || []);
   }, [profile.id]);
 
   useEffect(() => { loadDocs(); }, [loadDocs]);
+
+  const handleTitleAdd = async () => {
+    if (!newTitle.nombre) {
+      alert('El nombre del título es obligatorio');
+      return;
+    }
+    const { data, error } = await supabaseClient.from('employee_titles').insert({
+      profile_id: profile.id,
+      nombre: newTitle.nombre,
+      fecha_caducidad: newTitle.fecha || null
+    }).select().single();
+    
+    if (!error) {
+      setTitlesList(p => [...p, data]);
+      setNewTitle({ nombre: '', fecha: '' });
+    }
+  };
+
+  const deleteTitle = async (title) => {
+    if (!confirm(`¿Eliminar el título "${title.nombre}"?`)) return;
+    
+    // Primero borrar archivos asociados de storage
+    const titleDocs = docsList.filter(d => d.categoria === `title_${title.id}`);
+    if (titleDocs.length > 0) {
+      await supabaseClient.storage.from('documentos').remove(titleDocs.map(d => d.storage_path));
+      await supabaseClient.from('documentos').delete().eq('profile_id', profile.id).like('categoria', `title_${title.id}`);
+    }
+    
+    await supabaseClient.from('employee_titles').delete().eq('id', title.id);
+    loadDocs();
+  };
 
   const handleUpload = async (files, category) => {
     if (!files || files.length === 0) return;
@@ -684,8 +720,90 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
         {renderFileBlock(DOC_CATEGORIES.find(c => c.k === 'dni'))}
         {renderFileBlock(DOC_CATEGORIES.find(c => c.k === 'tarjeta_sanitaria'))}
         {DOC_CATEGORIES.filter(c => !c.isPersonal).map(cat => renderFileBlock(cat))}
+
+        {/* SECCIÓN DE OTROS TÍTULOS */}
+        <div style={{marginTop: 25, borderTop: '2px solid var(--border)', paddingTop: 20}}>
+          <h4 style={{marginBottom: 15, fontSize: 13, color: 'var(--accent)'}}>OTROS TÍTULOS Y FORMACIÓN</h4>
+          
+          <div style={{background: 'var(--bg3)', padding: 15, borderRadius: 8, marginBottom: 20, border: '1px solid var(--border2)'}}>
+            <label style={{fontSize: 12, marginBottom: 10, display:'block'}}>Añadir nuevo título</label>
+            <div style={{display:'flex', flexDirection:'column', gap: 10}}>
+              <input 
+                placeholder="Nombre del título (ej: Manipulador Alimentos)" 
+                value={newTitle.nombre} 
+                onChange={e=>setNewTitle({...newTitle, nombre: e.target.value})} 
+                style={{background: 'var(--bg2)'}}
+              />
+              <div style={{display:'flex', gap: 10}}>
+                <input 
+                  type="date" 
+                  value={newTitle.fecha} 
+                  onChange={e=>setNewTitle({...newTitle, fecha: e.target.value})} 
+                  style={{background: 'var(--bg2)', flex: 1}}
+                />
+                <button className="btn btn-primary" onClick={handleTitleAdd} disabled={!newTitle.nombre}>
+                  <i className="fa-solid fa-plus"></i> Añadir
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div style={{display:'flex', flexDirection:'column', gap: 15}}>
+            {titlesList.map(title => {
+              const catKey = `title_${title.id}`;
+              const titleDocs = docsList.filter(d => d.categoria === catKey);
+              const status = title.fecha_caducidad ? getDocStatus(title.fecha_caducidad) : null;
+              
+              return (
+                <div key={title.id} style={{background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, border: '1px solid var(--border)'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom: 10}}>
+                    <div>
+                      <div style={{fontWeight: 600, fontSize: 14, color: 'var(--text)'}}>{title.nombre}</div>
+                      {title.fecha_caducidad && (
+                        <div style={{fontSize: 11, marginTop: 4}} className={`doc-status ${status.class}`}>
+                          Caduca: {formatDate(title.fecha_caducidad)} - {status.label}
+                        </div>
+                      )}
+                    </div>
+                    <button onClick={() => deleteTitle(title)} className="btn btn-danger" style={{padding: '4px 8px', fontSize: 11, background:'transparent', border:'none', color:'var(--danger)'}}>
+                      <i className="fa-solid fa-trash-can"></i>
+                    </button>
+                  </div>
+
+                  <div style={{display:'flex', flexDirection:'column', gap: 5, marginBottom: 10}}>
+                    {titleDocs.map(d => (
+                      <div key={d.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--bg3)', padding: '6px 10px', borderRadius: 6, fontSize: 11}}>
+                        <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth: '200px'}}>{d.nombre_archivo}</span>
+                        <div style={{display:'flex', gap: 6}}>
+                          <a href={d.url} target="_blank" className="btn btn-secondary" style={{padding: '3px 7px', fontSize: 10}}><i className="fa-solid fa-eye"></i></a>
+                          <button onClick={()=>deleteDoc(d)} className="btn btn-danger" style={{padding: '3px 7px', fontSize: 10, background:'transparent', border:'none', color:'var(--danger)'}}><i className="fa-solid fa-trash"></i></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div 
+                    className="dropzone"
+                    onClick={() => document.getElementById(`file-${catKey}`).click()}
+                    style={{padding: '8px', borderStyle: 'dashed', borderWidth: '1px'}}
+                  >
+                    <i className={`fa-solid ${uploading === catKey ? 'fa-spinner fa-spin' : 'fa-cloud-arrow-up'}`} style={{fontSize: 14, marginBottom: 4}}></i>
+                    <span style={{fontSize: 9}}>{uploading === catKey ? 'Subiendo...' : 'Subir archivos del título'}</span>
+                    <input 
+                      id={`file-${catKey}`}
+                      type="file" 
+                      multiple
+                      onChange={e=>handleUpload(e.target.files, catKey)} 
+                      style={{display:'none'}} 
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
         
-        <div style={{display:'flex', gap: 10, marginTop: 20}}>
+        <div style={{display:'flex', gap: 10, marginTop: 25}}>
           <button className="btn btn-primary btn-full" onClick={save}>Guardar Datos y Fechas</button>
           <button className="btn btn-secondary" onClick={onCancel}>Cancelar</button>
         </div>
@@ -701,12 +819,86 @@ function EventModal({ event, employees, onSave, onCancel, toast, sendNotificatio
   const [exporting, setExporting] = useState(false);
   const [specificUnavail, setSpecificUnavail] = useState([]);
   const [filterCat, setFilterCat] = useState('carga'); // 'carga', 'protocolo', 'rigger'
+  const [eventDocs, setEventDocs] = useState([]);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+
+  const loadEventDocs = useCallback(async () => {
+    if (!event?.id) return;
+    const { data } = await supabaseClient.from('event_documents').select('*').eq('event_id', event.id);
+    setEventDocs(data || []);
+  }, [event?.id]);
 
   useEffect(() => {
     if (event?.id) {
       loadAssignments();
+      loadEventDocs();
     }
-  }, [event]);
+  }, [event, loadEventDocs]);
+
+  const handleEventFileUpload = async (files) => {
+    if (!files || files.length === 0) return;
+    
+    let evId = form.id;
+    if (!evId) {
+      if (!form.nombre || !form.fecha) {
+        toast('Nombre y fecha son obligatorios para subir archivos', 'warn');
+        return;
+      }
+      setLoading(true);
+      const { data, error } = await supabaseClient.from('events').insert({
+        nombre: form.nombre,
+        fecha: form.fecha,
+        ubicacion: form.ubicacion,
+        notas: form.notas
+      }).select().single();
+      
+      if (error) {
+        toast('Error al crear el evento previo a la subida', 'danger');
+        setLoading(false);
+        return;
+      }
+      evId = data.id;
+      setForm(p => ({...p, id: evId}));
+      setLoading(false);
+    }
+
+    setUploadingDoc(true);
+    for (const file of files) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `event_${evId}_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      
+      const { error: uploadError } = await supabaseClient.storage
+        .from('documentos')
+        .upload(fileName, file);
+
+      if (uploadError) {
+        console.error('Error subiendo:', file.name, uploadError);
+        toast(`Error subiendo ${file.name}`, 'danger');
+      } else {
+        const { data: { publicUrl } } = supabaseClient.storage
+          .from('documentos')
+          .getPublicUrl(fileName);
+        
+        await supabaseClient.from('event_documents').insert({
+          event_id: evId,
+          nombre_archivo: file.name,
+          url: publicUrl,
+          storage_path: fileName
+        });
+      }
+    }
+    loadEventDocs();
+    setUploadingDoc(false);
+  };
+
+  const deleteEventDoc = async (doc) => {
+    if (!confirm('¿Seguro que quieres eliminar este archivo del evento?')) return;
+    const { error } = await supabaseClient.storage.from('documentos').remove([doc.storage_path]);
+    if (!error) {
+      await supabaseClient.from('event_documents').delete().eq('id', doc.id);
+      loadEventDocs();
+    }
+  };
 
   useEffect(() => {
     if (form.fecha) {
@@ -861,6 +1053,18 @@ function EventModal({ event, employees, onSave, onCancel, toast, sendNotificatio
           }
         }
       }
+      // Añadir archivos del evento al ZIP
+      if (eventDocs.length > 0) {
+        const eventFolder = zip.folder("DOCUMENTOS_EVENTO");
+        for (const doc of eventDocs) {
+          try {
+            const resp = await fetch(doc.url);
+            const blob = await resp.blob();
+            eventFolder.file(doc.nombre_archivo, blob);
+          } catch (err) { console.error('Error descargando doc evento:', err); }
+        }
+      }
+
       zip.file("LISTADO_Y_HORARIOS.pdf", pdf.output('blob'));
       const content = await zip.generateAsync({ type: "blob" });
       const link = document.createElement('a');
@@ -903,6 +1107,41 @@ function EventModal({ event, employees, onSave, onCancel, toast, sendNotificatio
           <div className="form-group">
             <label>Notas / Anotaciones</label>
             <textarea value={form.notas||''} onChange={e=>setForm({...form, notas: e.target.value})} placeholder="Detalles adicionales..." rows="3"></textarea>
+          </div>
+
+          <div className="form-group">
+            <label>Archivos del Evento (Presupuestos, Imágenes, etc.)</label>
+            <div style={{display:'flex', flexDirection:'column', gap: 8, marginBottom: 12, background:'var(--bg3)', padding: 10, borderRadius: 8}}>
+              {eventDocs.map(d => (
+                <div key={d.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--bg2)', padding: '8px 12px', borderRadius: 6, fontSize: 12, border: '1px solid var(--border)'}}>
+                  <div style={{display:'flex', alignItems:'center', gap: 8, overflow:'hidden'}}>
+                    <i className={d.nombre_archivo.toLowerCase().endsWith('.pdf') ? "fa-solid fa-file-pdf" : "fa-solid fa-image"} style={{color: d.nombre_archivo.toLowerCase().endsWith('.pdf') ? '#e74c3c' : '#3498db'}}></i>
+                    <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}} title={d.nombre_archivo}>{d.nombre_archivo}</span>
+                  </div>
+                  <div style={{display:'flex', gap: 6}}>
+                    <a href={d.url} target="_blank" className="btn btn-secondary" style={{padding: '4px 8px', fontSize: 11}}><i className="fa-solid fa-eye"></i></a>
+                    <button onClick={()=>deleteEventDoc(d)} className="btn btn-danger" style={{padding: '4px 8px', fontSize: 11, background:'transparent', border:'none', color:'var(--danger)'}}><i className="fa-solid fa-trash"></i></button>
+                  </div>
+                </div>
+              ))}
+              {eventDocs.length === 0 && <div style={{fontSize: 11, color: 'var(--text3)', fontStyle:'italic', textAlign:'center', padding: '10px 0'}}>No hay archivos adjuntos</div>}
+              
+              <div 
+                className="dropzone"
+                onClick={() => document.getElementById('event-file-upload').click()}
+                style={{marginTop: 5, padding: '10px'}}
+              >
+                <i className={`fa-solid ${uploadingDoc ? 'fa-spinner fa-spin' : 'fa-cloud-arrow-up'}`} style={{fontSize: 16}}></i>
+                <span style={{fontSize: 10}}>{uploadingDoc ? 'Subiendo...' : 'Añadir archivos (PDF, Imágenes...)'}</span>
+                <input 
+                  id="event-file-upload"
+                  type="file" 
+                  multiple
+                  onChange={e=>handleEventFileUpload(e.target.files)} 
+                  style={{display:'none'}} 
+                />
+              </div>
+            </div>
           </div>
 
           <div style={{marginTop: 20, marginBottom: 10, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
@@ -1387,13 +1626,17 @@ function MainApp() {
   };
 
   const loadEmployees = async () => {
-    const { data, error } = await supabaseClient.from('profiles').select('*').order('nombre');
+    const { data: profs, error } = await supabaseClient.from('profiles').select('*').order('nombre');
     if (error) {
       console.error('Error cargando empleados:', error);
       toast('Error al cargar la lista de empleados', 'danger');
     } else {
-      console.log('Empleados cargados:', data?.length);
-      setEmployees(data || []);
+      const { data: titles } = await supabaseClient.from('employee_titles').select('*');
+      const empsWithTitles = (profs || []).map(p => ({
+        ...p,
+        custom_titles: (titles || []).filter(t => t.profile_id === p.id)
+      }));
+      setEmployees(empsWithTitles);
     }
   };
 
@@ -1540,6 +1783,17 @@ function MainApp() {
         if (s.status === 'expired') alerts.push({ e, label: k.replace('_fecha','').toUpperCase().replace('PRL_','PRL '), type: 'expired', date: e[k] });
         else if (s.status === 'warn') alerts.push({ e, label: k.replace('_fecha','').toUpperCase().replace('PRL_','PRL '), type: 'warn', date: e[k] });
       });
+      
+      // Alertas de títulos personalizados
+      if (e.custom_titles) {
+        e.custom_titles.forEach(t => {
+          if (t.fecha_caducidad) {
+            const s = getDocStatus(t.fecha_caducidad);
+            if (s.status === 'expired') alerts.push({ e, label: t.nombre.toUpperCase(), type: 'expired', date: t.fecha_caducidad });
+            else if (s.status === 'warn') alerts.push({ e, label: t.nombre.toUpperCase(), type: 'warn', date: t.fecha_caducidad });
+          }
+        });
+      }
     });
     // Ordenar por fecha (las más antiguas/próximas primero)
     alerts.sort((a, b) => {

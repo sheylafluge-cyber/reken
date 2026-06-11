@@ -1,0 +1,37 @@
+-- EJECUTAR ESTOS SCRIPTS EN EL SQL EDITOR DE SUPABASE PARA ACTIVAR LAS NUEVAS FUNCIONALIDADES
+
+-- 1. TABLA PARA DOCUMENTOS DE EVENTOS (Presupuestos, Imágenes, etc.)
+CREATE TABLE IF NOT EXISTS event_documents (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  event_id UUID REFERENCES events(id) ON DELETE CASCADE,
+  nombre_archivo TEXT NOT NULL,
+  url TEXT NOT NULL,
+  storage_path TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE event_documents ENABLE ROW LEVEL SECURITY;
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Acceso total para todos event_docs') THEN
+    CREATE POLICY "Acceso total para todos event_docs" ON event_documents FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
+
+
+-- 2. TABLA PARA TÍTULOS PERSONALIZADOS DE EMPLEADOS
+CREATE TABLE IF NOT EXISTS employee_titles (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  nombre TEXT NOT NULL,
+  fecha_caducidad DATE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE employee_titles ENABLE ROW LEVEL SECURITY;
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Acceso total títulos personalizados') THEN
+    CREATE POLICY "Acceso total títulos personalizados" ON employee_titles FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
