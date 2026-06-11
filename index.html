@@ -1991,20 +1991,37 @@ function GeneralCalendarView({ employees, toast, setSelectedEmp, sendNotificatio
 
 function GlobalEpisInventory({ isAdmin }) {
   const [templates, setTemplates] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingEpi, setEditingEpi] = useState(null);
+  const [viewingDistribution, setViewingDistribution] = useState(null); // epi_nombre
 
-  const fetchTemplates = async () => {
+  const fetchData = async () => {
     setLoading(true);
-    const { data, error } = await supabaseClient.from('global_epi_templates').select('*').order('epi_nombre');
-    if (!error) setTemplates(data || []);
-    setLoading(false);
+    try {
+      // 1. Obtener plantillas globales
+      const { data: tData } = await supabaseClient.from('global_epi_templates').select('*').order('epi_nombre');
+      setTemplates(tData || []);
+
+      // 2. Obtener TODAS las asignaciones de EPIs de todos los empleados
+      const { data: aData } = await supabaseClient
+        .from('employee_epis')
+        .select(`
+          *,
+          profiles:profile_id (nombre, apellidos)
+        `);
+      setAssignments(aData || []);
+    } catch (err) {
+      console.error('Error al cargar inventario:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    fetchTemplates();
+    fetchData();
   }, []);
 
   const filtered = templates.filter(t => 
@@ -2018,15 +2035,13 @@ function GlobalEpisInventory({ isAdmin }) {
       const { id, created_at, ...cleanData } = epiData;
       if (id && !id.toString().startsWith('temp_')) {
         await supabaseClient.from('global_epi_templates').update(cleanData).eq('id', id);
-        
-        // Sincronizar foto globalmente si se ha cambiado
         if (cleanData.foto_url) {
           await supabaseClient.from('employee_epis').update({ foto_url: cleanData.foto_url }).eq('epi_nombre', cleanData.epi_nombre);
         }
       } else {
         await supabaseClient.from('global_epi_templates').insert([cleanData]);
       }
-      fetchTemplates();
+      fetchData();
       setShowModal(false);
       setEditingEpi(null);
     } catch (err) {
@@ -2035,9 +2050,9 @@ function GlobalEpisInventory({ isAdmin }) {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Seguro que quieres eliminar este EPI de la lista global? No se borrará de las fichas de los empleados que ya lo tengan.')) return;
+    if (!confirm('¿Seguro que quieres eliminar este EPI de la lista global?')) return;
     await supabaseClient.from('global_epi_templates').delete().eq('id', id);
-    fetchTemplates();
+    fetchData();
   };
 
   return (
@@ -2067,49 +2082,114 @@ function GlobalEpisInventory({ isAdmin }) {
       {loading ? (
         <div style={{textAlign: 'center', padding: '50px 0'}}>
           <i className="fa-solid fa-circle-notch fa-spin" style={{fontSize: 30, color: 'var(--accent)', marginBottom: 15}}></i>
-          <div>Cargando inventario...</div>
+          <div>Cargando inventario completo...</div>
         </div>
       ) : (
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20}}>
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20}}>
           {filtered.length === 0 ? (
             <div className="card" style={{gridColumn: '1/-1', textAlign: 'center', padding: 40, color: 'var(--text3)'}}>
               <i className="fa-solid fa-helmet-safety" style={{fontSize: 40, marginBottom: 15, opacity: 0.2}}></i>
-              <p>No se han encontrado equipos en el inventario.</p>
+              <p>No se han encontrado equipos.</p>
             </div>
-          ) : filtered.map(epi => (
-            <div key={epi.id} className="card" style={{padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column'}}>
-              <div style={{width: '100%', aspectRatio: '16/9', background: 'var(--bg3)', position: 'relative'}}>
-                {epi.foto_url ? (
-                  <img src={epi.foto_url} style={{width: '100%', height: '100%', objectFit: 'cover'}} alt={epi.epi_nombre} />
-                ) : (
-                  <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                    <i className="fa-solid fa-camera" style={{fontSize: 30, color: 'var(--text3)', opacity: 0.3}}></i>
+          ) : filtered.map(epi => {
+            const epiAssignments = assignments.filter(a => a.epi_nombre === epi.epi_nombre);
+            const count = epiAssignments.length;
+
+            return (
+              <div key={epi.id} className="card" style={{padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column'}}>
+                <div style={{width: '100%', aspectRatio: '16/9', background: 'var(--bg3)', position: 'relative'}}>
+                  {epi.foto_url ? (
+                    <img src={epi.foto_url} style={{width: '100%', height: '100%', objectFit: 'cover'}} alt={epi.epi_nombre} />
+                  ) : (
+                    <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                      <i className="fa-solid fa-camera" style={{fontSize: 30, color: 'var(--text3)', opacity: 0.3}}></i>
+                    </div>
+                  )}
+                  <div style={{position: 'absolute', top: 10, right: 10, background: count > 0 ? 'var(--accent)' : 'var(--text3)', color: 'white', padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700, boxShadow: '0 2px 8px rgba(0,0,0,0.2)'}}>
+                    {count} {count === 1 ? 'asignado' : 'asignados'}
                   </div>
-                )}
-              </div>
-              <div style={{padding: 15, flex: 1}}>
-                <div style={{fontWeight: 700, fontSize: 16, marginBottom: 5}}>{epi.epi_nombre}</div>
-                <div style={{fontSize: 13, color: 'var(--text2)', marginBottom: 10}}>
-                  {epi.modelo || 'Sin modelo'} {epi.proveedor ? `· ${epi.proveedor}` : ''}
                 </div>
-                {epi.norma_ce && (
-                  <div style={{fontSize: 11, background: 'var(--bg3)', padding: '4px 8px', borderRadius: 4, display: 'inline-block'}}>
-                    Norma: {epi.norma_ce}
+                
+                <div style={{padding: 15, flex: 1}}>
+                  <div style={{fontWeight: 700, fontSize: 16, marginBottom: 5}}>{epi.epi_nombre}</div>
+                  <div style={{fontSize: 13, color: 'var(--text2)', marginBottom: 10}}>
+                    {epi.modelo || 'Sin modelo'} {epi.proveedor ? `· ${epi.proveedor}` : ''}
                   </div>
-                )}
-              </div>
-              {isAdmin && (
+                  
+                  {count > 0 && (
+                    <button 
+                      className="btn btn-secondary btn-full" 
+                      style={{fontSize: 11, padding: '8px', marginBottom: 10, background: 'rgba(255, 51, 153, 0.05)', borderColor: 'rgba(255, 51, 153, 0.2)', color: 'var(--accent2)'}}
+                      onClick={() => setViewingDistribution(epi.epi_nombre)}
+                    >
+                      <i className="fa-solid fa-users"></i> Ver quién lo tiene
+                    </button>
+                  )}
+                </div>
+
                 <div style={{padding: 10, borderTop: '1px solid var(--border)', display: 'flex', gap: 8, background: 'var(--bg2)'}}>
-                  <button className="btn btn-secondary btn-full" onClick={() => { setEditingEpi(epi); setShowModal(true); }}>
-                    <i className="fa-solid fa-pen"></i> Editar
+                  <button className="btn btn-secondary btn-full" style={{fontSize: 12}} onClick={() => { setEditingEpi(epi); setShowModal(true); }}>
+                    <i className="fa-solid fa-pen"></i> Editar Ficha
                   </button>
-                  <button className="btn btn-danger" onClick={() => handleDelete(epi.id)}>
-                    <i className="fa-solid fa-trash"></i>
-                  </button>
+                  {isAdmin && (
+                    <button className="btn btn-danger" style={{width: 40}} onClick={() => handleDelete(epi.id)}>
+                      <i className="fa-solid fa-trash"></i>
+                    </button>
+                  )}
                 </div>
-              )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* MODAL DE DISTRIBUCIÓN */}
+      {viewingDistribution && (
+        <div className="modal-overlay" style={{zIndex: 500}}>
+          <div className="modal" style={{maxWidth: 700}}>
+            <div className="modal-header">
+              <div>
+                <h2>Distribución: {viewingDistribution}</h2>
+                <p style={{fontSize: 12, color: 'var(--text3)'}}>Listado de empleados que tienen este equipo actualmente.</p>
+              </div>
+              <button className="btn btn-secondary" onClick={() => setViewingDistribution(null)}><i className="fa-solid fa-xmark"></i></button>
             </div>
-          ))}
+            <div className="modal-body" style={{padding: 0}}>
+              <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                <thead style={{background: 'var(--bg3)'}}>
+                  <tr>
+                    <th style={{padding: 12, textAlign: 'left', fontSize: 11}}>EMPLEADO</th>
+                    <th style={{padding: 12, textAlign: 'left', fontSize: 11}}>FECHA FABRICACIÓN</th>
+                    <th style={{padding: 12, textAlign: 'left', fontSize: 11}}>FECHA CADUCIDAD</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assignments
+                    .filter(a => a.epi_nombre === viewingDistribution)
+                    .map((a, idx) => (
+                      <tr key={idx} style={{borderBottom: '1px solid var(--border)'}}>
+                        <td style={{padding: 12}}>
+                          <div style={{fontWeight: 600, fontSize: 13}}>{a.profiles?.nombre} {a.profiles?.apellidos}</div>
+                        </td>
+                        <td style={{padding: 12, fontSize: 12, color: 'var(--text2)'}}>
+                          {a.fecha_fabricacion ? new Date(a.fecha_fabricacion).toLocaleDateString() : '—'}
+                        </td>
+                        <td style={{padding: 12, fontSize: 12}}>
+                          {a.fecha_caducidad ? (
+                            <span style={{color: new Date(a.fecha_caducidad) < new Date() ? 'var(--danger)' : 'var(--text2)'}}>
+                              {new Date(a.fecha_caducidad).toLocaleDateString()}
+                            </span>
+                          ) : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+              <div style={{padding: 20, textAlign: 'right'}}>
+                <button className="btn btn-secondary" onClick={() => setViewingDistribution(null)}>Cerrar</button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
