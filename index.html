@@ -331,7 +331,7 @@ function AuthPage({ toast, onBypass }) {
     const cleanUser = username.trim().toLowerCase();
     const cleanPass = pass.trim();
 
-    const email = `${cleanUser}@reken.internal`;
+    const email = `${cleanUser}@reken-events.com`;
 
     try {
       // 1. Intentar el login oficial en Supabase Auth
@@ -2852,7 +2852,7 @@ function MainApp() {
 
       // 2. Crear al usuario en Supabase Auth
       const { data: signUpData, error: signUpError } = await tempSupabase.auth.signUp({
-        email: `${empData.username.toLowerCase()}@reken.internal`,
+        email: `${empData.username.toLowerCase()}@reken-events.com`,
         password: empData.password,
         options: {
           data: {
