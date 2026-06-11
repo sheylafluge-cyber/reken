@@ -2599,7 +2599,7 @@ function MainApp() {
           {isAdmin && <button className={`nav-item ${page==='employees'?'active':''}`} onClick={()=>{setPage('employees'); setSidebarOpen(false);}}><i className="fa-solid fa-users"></i> Empleados</button>}
           {isAdmin && <button className={`nav-item ${page==='gencal'?'active':''}`} onClick={()=>{setPage('gencal'); setSidebarOpen(false);}}><i className="fa-solid fa-calendar-days"></i> Calendario General</button>}
           {!isAdmin && <button className={`nav-item ${page==='mycal'?'active':''}`} onClick={()=>{setPage('mycal'); setSidebarOpen(false);}}><i className="fa-solid fa-calendar"></i> Mi Disponibilidad</button>}
-          <button className={`nav-item ${page==='epis_global'?'active':''}`} onClick={()=>{setPage('epis_global'); setSidebarOpen(false);}}><i className="fa-solid fa-helmet-safety"></i> Inventario de EPIs</button>
+          {isAdmin && <button className={`nav-item ${page==='epis_global'?'active':''}`} onClick={()=>{setPage('epis_global'); setSidebarOpen(false);}}><i className="fa-solid fa-helmet-safety"></i> Inventario de EPIs</button>}
           
           <button className={`nav-item ${showNotifications?'active':''}`} onClick={()=>{setShowNotifications(!showNotifications); setSidebarOpen(false);}}>
             <i className="fa-solid fa-bell"></i> Notificaciones 
@@ -2888,7 +2888,7 @@ function MainApp() {
           </div>
         )}
 
-        {page === 'epis_global' && (
+        {page === 'epis_global' && isAdmin && (
           <GlobalEpisInventory isAdmin={isAdmin} />
         )}
         </main>
