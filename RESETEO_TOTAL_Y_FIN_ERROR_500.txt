@@ -1,0 +1,76 @@
+-- =============================================================================
+-- RESETEO TOTAL Y FIN DEL ERROR 500 (MODO DIOS)
+-- =============================================================================
+-- Este script borra todo rastro de usuarios y triggers conflictivos 
+-- para forzar un estado limpio en el motor de autenticación.
+-- =============================================================================
+
+-- 1. ELIMINAR CUALQUIER TRIGGER EN EL ESQUEMA AUTH
+DO $$ 
+DECLARE r RECORD;
+BEGIN
+  FOR r IN (SELECT trigger_name, event_object_table FROM information_schema.triggers WHERE event_object_schema = 'auth') 
+  LOOP
+    EXECUTE 'DROP TRIGGER IF EXISTS ' || quote_ident(r.trigger_name) || ' ON auth.' || quote_ident(r.event_object_table);
+  END LOOP;
+END $$;
+
+-- 2. DESACTIVAR RLS TEMPORALMENTE (Evitar bloqueos de políticas)
+ALTER TABLE public.profiles DISABLE ROW LEVEL SECURITY;
+
+-- 3. LIMPIEZA ABSOLUTA
+TRUNCATE auth.users CASCADE;
+
+-- 4. CREAR USUARIO ADMIN COMPATIBLE CON LA APP
+INSERT INTO auth.users (
+  id, 
+  instance_id,
+  email, 
+  encrypted_password, 
+  email_confirmed_at, 
+  raw_app_meta_data, 
+  raw_user_meta_data, 
+  aud, 
+  role, 
+  is_super_admin, 
+  last_sign_in_at, 
+  created_at, 
+  updated_at, 
+  is_sso_user
+) VALUES (
+  '00000000-0000-0000-0000-000000000001', 
+  '00000000-0000-0000-0000-000000000000',
+  'admin.reken@gmail.com', 
+  extensions.crypt('admin123', extensions.gen_salt('bf', 10)), 
+  now(), 
+  '{"provider": "email", "providers": ["email"], "email_confirmed": true}'::jsonb, 
+  '{"rol": "admin", "nombre": "Admin Master"}'::jsonb, 
+  'authenticated', 
+  'authenticated', 
+  false, 
+  now(), 
+  now(), 
+  now(), 
+  false
+);
+
+-- 5. VINCULAR IDENTIDAD
+INSERT INTO auth.identities (
+  id, 
+  user_id, 
+  identity_data, 
+  provider, 
+  provider_id, 
+  last_sign_in_at, 
+  created_at, 
+  updated_at
+) VALUES (
+  gen_random_uuid(), 
+  '00000000-0000-0000-0000-000000000001', 
+  jsonb_build_object('sub', '00000000-0000-0000-0000-000000000001', 'email', 'admin.reken@gmail.com', 'email_verified', true), 
+  'email', 
+  '00000000-0000-0000-0000-000000000001', 
+  now(), 
+  now(), 
+  now()
+);
