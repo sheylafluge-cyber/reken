@@ -451,12 +451,49 @@ function CalendarView({ userId, isAdmin, toast }) {
   );
 }
 
+function EpiModal({ epi, onSave, onCancel }) {
+  const [f, setF] = useState(epi || { 
+    epi_nombre: '', modelo: '', referencia: '', norma_ce: '', 
+    proveedor: '', fecha_fabricacion: '', fecha_caducidad: '', fecha_compra: '' 
+  });
+
+  return (
+    <div className="modal-overlay" style={{zIndex: 200}}>
+      <div className="modal" style={{maxWidth: 550}}>
+        <div className="modal-header">
+          <h2>{epi ? 'Editar EPI' : 'Nuevo EPI'}</h2>
+          <button className="btn btn-secondary" onClick={onCancel}><i className="fa-solid fa-xmark"></i></button>
+        </div>
+        <div className="modal-body">
+          <div className="grid-2" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 15}}>
+            <div className="form-group"><label>Nombre EPI</label><input value={f.epi_nombre} onChange={e=>setF({...f, epi_nombre: e.target.value})} placeholder="Arnés, Casco..." /></div>
+            <div className="form-group"><label>Modelo</label><input value={f.modelo} onChange={e=>setF({...f, modelo: e.target.value})} /></div>
+            <div className="form-group"><label>Referencia / S/N</label><input value={f.referencia} onChange={e=>setF({...f, referencia: e.target.value})} /></div>
+            <div className="form-group"><label>Norma CE</label><input value={f.norma_ce} onChange={e=>setF({...f, norma_ce: e.target.value})} /></div>
+            <div className="form-group"><label>Proveedor</label><input value={f.proveedor} onChange={e=>setF({...f, proveedor: e.target.value})} /></div>
+            <div className="form-group"><label>Fecha Compra</label><input type="date" value={f.fecha_compra||''} onChange={e=>setF({...f, fecha_compra: e.target.value})} /></div>
+            <div className="form-group"><label>Fecha Fabricación</label><input type="date" value={f.fecha_fabricacion||''} onChange={e=>setF({...f, fecha_fabricacion: e.target.value})} /></div>
+            <div className="form-group"><label>Fecha Caducidad</label><input type="date" value={f.fecha_caducidad||''} onChange={e=>setF({...f, fecha_caducidad: e.target.value})} /></div>
+          </div>
+          <div style={{display:'flex', gap: 10, marginTop: 20}}>
+            <button className="btn btn-primary btn-full" onClick={() => onSave(f)}>Guardar EPI</button>
+            <button className="btn btn-secondary" onClick={onCancel}>Cancelar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, currentUser }) {
   const [form, setForm] = useState({...profile});
   const [docsList, setDocsList] = useState([]);
   const [titlesList, setTitlesList] = useState([]);
+  const [episList, setEpisList] = useState([]);
   const [uploading, setUploading] = useState(null);
   const [newTitle, setNewTitle] = useState({ nombre: '', fecha: '' });
+  const [showEpiModal, setShowEpiModal] = useState(false);
+  const [editingEpi, setEditingEpi] = useState(null);
 
   const loadDocs = useCallback(async () => {
     const { data: docs } = await supabaseClient.from('documentos').select('*').eq('profile_id', profile.id);
@@ -464,9 +501,29 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
     
     const { data: titles } = await supabaseClient.from('employee_titles').select('*').eq('profile_id', profile.id);
     setTitlesList(titles || []);
+
+    const { data: epis } = await supabaseClient.from('employee_epis').select('*').eq('profile_id', profile.id);
+    setEpisList(epis || []);
   }, [profile.id]);
 
   useEffect(() => { loadDocs(); }, [loadDocs]);
+
+  const saveEpi = async (epiData) => {
+    if (epiData.id) {
+      await supabaseClient.from('employee_epis').update(epiData).eq('id', epiData.id);
+    } else {
+      await supabaseClient.from('employee_epis').insert({ ...epiData, profile_id: profile.id });
+    }
+    loadDocs();
+    setShowEpiModal(false);
+    setEditingEpi(null);
+  };
+
+  const deleteEpi = async (id) => {
+    if (!confirm('¿Seguro que quieres eliminar este EPI?')) return;
+    await supabaseClient.from('employee_epis').delete().eq('id', id);
+    loadDocs();
+  };
 
   const handleTitleAdd = async () => {
     if (!newTitle.nombre) {
@@ -805,6 +862,68 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
             })}
           </div>
         </div>
+
+        {/* SECCIÓN DE EPIs */}
+        <div style={{marginTop: 25, borderTop: '2px solid var(--border)', paddingTop: 20}}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 15}}>
+            <h4 style={{fontSize: 13, color: 'var(--accent)'}}>EQUIPOS DE PROTECCIÓN INDIVIDUAL (EPIs)</h4>
+            <button className="btn btn-primary" style={{padding: '5px 12px', fontSize: 12}} onClick={() => { setEditingEpi(null); setShowEpiModal(true); }}>
+              <i className="fa-solid fa-plus"></i> Nuevo EPI
+            </button>
+          </div>
+          
+          <div style={{overflowX: 'auto', background: 'var(--bg3)', borderRadius: 8, border: '1px solid var(--border2)'}}>
+            <table style={{width: '100%', borderCollapse: 'collapse', fontSize: 11}}>
+              <thead style={{background: 'rgba(0,0,0,0.05)'}}>
+                <tr>
+                  <th style={{padding: '10px', textAlign: 'left'}}>E.P.I. / Modelo</th>
+                  <th style={{padding: '10px', textAlign: 'left'}}>Referencia</th>
+                  <th style={{padding: '10px', textAlign: 'left'}}>Proveedor</th>
+                  <th style={{padding: '10px', textAlign: 'left'}}>Caducidad</th>
+                  <th style={{padding: '10px', textAlign: 'center'}}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {episList.length === 0 ? (
+                  <tr><td colSpan="5" style={{padding: 20, textAlign: 'center', color: 'var(--text3)'}}>No hay EPIs registrados</td></tr>
+                ) : episList.map(epi => {
+                  const status = epi.fecha_caducidad ? getDocStatus(epi.fecha_caducidad) : null;
+                  return (
+                    <tr key={epi.id} style={{borderTop: '1px solid var(--border)'}}>
+                      <td style={{padding: '10px'}}>
+                        <div style={{fontWeight: 600}}>{epi.epi_nombre}</div>
+                        <div style={{fontSize: 10, color: 'var(--text2)'}}>{epi.modelo}</div>
+                      </td>
+                      <td style={{padding: '10px'}}>{epi.referencia}</td>
+                      <td style={{padding: '10px'}}>{epi.proveedor}</td>
+                      <td style={{padding: '10px'}}>
+                        {epi.fecha_caducidad ? (
+                          <div className={`doc-status ${status.class}`} style={{fontSize: 9, padding: '2px 6px'}}>
+                            {formatDate(epi.fecha_caducidad)}
+                          </div>
+                        ) : '—'}
+                      </td>
+                      <td style={{padding: '10px', textAlign: 'center'}}>
+                        <div style={{display: 'flex', gap: 5, justifyContent: 'center'}}>
+                          <button className="btn btn-secondary" style={{padding: '4px 8px', fontSize: 10}} onClick={() => { setEditingEpi(epi); setShowEpiModal(true); }}><i className="fa-solid fa-pen"></i></button>
+                          <button className="btn btn-danger" style={{padding: '4px 8px', fontSize: 10, background:'transparent', border:'none', color:'var(--danger)'}} onClick={() => deleteEpi(epi.id)}><i className="fa-solid fa-trash"></i></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        {showEpiModal && (
+          <EpiModal 
+            epi={editingEpi} 
+            onSave={saveEpi} 
+            onCancel={() => { setShowEpiModal(false); setEditingEpi(null); }} 
+          />
+        )}
         
         <div style={{display:'flex', gap: 10, marginTop: 25}}>
           <button className="btn btn-primary btn-full" onClick={save}>Guardar Datos y Fechas</button>
@@ -1645,11 +1764,13 @@ function MainApp() {
       toast('Error al cargar la lista de empleados', 'danger');
     } else {
       const { data: titles } = await supabaseClient.from('employee_titles').select('*');
-      const empsWithTitles = (profs || []).map(p => ({
+      const { data: epis } = await supabaseClient.from('employee_epis').select('*');
+      const empsWithAll = (profs || []).map(p => ({
         ...p,
-        custom_titles: (titles || []).filter(t => t.profile_id === p.id)
+        custom_titles: (titles || []).filter(t => t.profile_id === p.id),
+        epis: (epis || []).filter(e => e.profile_id === p.id)
       }));
-      setEmployees(empsWithTitles);
+      setEmployees(empsWithAll);
     }
   };
 
@@ -1804,6 +1925,17 @@ function MainApp() {
             const s = getDocStatus(t.fecha_caducidad);
             if (s.status === 'expired') alerts.push({ e, label: t.nombre.toUpperCase(), type: 'expired', date: t.fecha_caducidad });
             else if (s.status === 'warn') alerts.push({ e, label: t.nombre.toUpperCase(), type: 'warn', date: t.fecha_caducidad });
+          }
+        });
+      }
+
+      // Alertas de EPIs
+      if (e.epis) {
+        e.epis.forEach(epi => {
+          if (epi.fecha_caducidad) {
+            const s = getDocStatus(epi.fecha_caducidad);
+            if (s.status === 'expired') alerts.push({ e, label: `EPI: ${epi.epi_nombre.toUpperCase()}`, type: 'expired', date: epi.fecha_caducidad });
+            else if (s.status === 'warn') alerts.push({ e, label: `EPI: ${epi.epi_nombre.toUpperCase()}`, type: 'warn', date: epi.fecha_caducidad });
           }
         });
       }
