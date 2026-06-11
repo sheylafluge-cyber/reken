@@ -1151,6 +1151,7 @@ function EventModal({ event, employees, onSave, onCancel, toast, sendNotificatio
             <h4 style={{fontSize: 13, color: 'var(--text2)'}}>ASIGNAR PERSONAL DISPONIBLES</h4>
             <div style={{width: 180}}>
               <select value={filterCat} onChange={e=>setFilterCat(e.target.value)} style={{padding: '5px 10px', fontSize: 12, marginBottom: 0}}>
+                <option value="general">Vista General (Asignados)</option>
                 <option value="carga">Carga / Descarga</option>
                 <option value="protocolo">Protocolo</option>
                 <option value="rigger">Riggers</option>
@@ -1160,6 +1161,10 @@ function EventModal({ event, employees, onSave, onCancel, toast, sendNotificatio
 
           <div style={{display:'flex', flexDirection:'column', gap: 10, maxHeight: 280, overflowY:'auto', background:'var(--bg3)', padding: 10, borderRadius: 8}}>
             {employees.filter(e => {
+              if (filterCat === 'general') {
+                // En vista general solo mostramos los que ya están asignados para que sea un resumen
+                return selectedEmps.some(asg => asg.profile_id === e.id);
+              }
               if (specificUnavail.includes(e.id)) return false;
               if (filterCat === 'carga' && !e.es_carga) return false;
               if (filterCat === 'protocolo' && !e.es_protocolo) return false;
@@ -1206,12 +1211,17 @@ function EventModal({ event, employees, onSave, onCancel, toast, sendNotificatio
               );
             })}
             {employees.filter(e => {
+              if (filterCat === 'general') return selectedEmps.some(asg => asg.profile_id === e.id);
               if (specificUnavail.includes(e.id)) return false;
               if (filterCat === 'carga' && !e.es_carga) return false;
               if (filterCat === 'protocolo' && !e.es_protocolo) return false;
               if (filterCat === 'rigger' && !e.es_rigger) return false;
               return true;
-            }).length === 0 && <div style={{textAlign:'center', fontSize: 12, color:'var(--text3)', padding: 15}}>No hay operarios disponibles en esta categoría</div>}
+            }).length === 0 && (
+              <div style={{textAlign:'center', fontSize: 12, color:'var(--text3)', padding: 15}}>
+                {filterCat === 'general' ? 'No hay personal asignado a este evento todavía' : 'No hay operarios disponibles en esta categoría'}
+              </div>
+            )}
           </div>
 
           <div style={{display:'flex', flexWrap:'wrap', gap: 10, marginTop: 25}}>
