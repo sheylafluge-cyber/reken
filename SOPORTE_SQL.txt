@@ -61,6 +61,50 @@ BEGIN
 END $$;
 
 
+-- 4. TABLA PARA PLANTILLAS GLOBALES DE EPIs (LISTA ESTÁNDAR)
+CREATE TABLE IF NOT EXISTS global_epi_templates (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  epi_nombre TEXT NOT NULL,
+  modelo TEXT,
+  referencia TEXT,
+  norma_ce TEXT,
+  proveedor TEXT,
+  fecha_fabricacion_default DATE,
+  fecha_caducidad_default DATE,
+  fecha_compra_default DATE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE global_epi_templates ENABLE ROW LEVEL SECURITY;
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Acceso total templates') THEN
+    CREATE POLICY "Acceso total templates" ON global_epi_templates FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
+
+-- Inserción de los 14 EPIs estándar iniciales
+INSERT INTO global_epi_templates (epi_nombre, modelo, referencia, norma_ce, proveedor, fecha_fabricacion_default) VALUES
+('Arnés anticaídas', '80077B2301340-271', '2777/12558-02/E01-02', '', 'SAFETOP', '2024-10-02'),
+('Arnés anticaídas', '80077B2301340-090', '2777/12558-02/E01-02', '', 'SAFETOP', '2024-10-02'),
+('Arnés anticaídas', 'JE148/0122091781105', 'EN 361:2002, EN358:1999, EN813:2008, EN1497:2007', '', 'FARU', '2022-03-01');
+
+INSERT INTO global_epi_templates (epi_nombre, modelo, referencia, norma_ce, proveedor, fecha_caducidad_default, fecha_compra_default) VALUES
+('Elemento de amarre con Absorbedor', '612413-020JE12207 Steel', '237583472612413-020CE-PC-191211-017-24-3A', 'EN 355:2002, EN 354:2002, EN 362:2005', 'ACCESUS', '2034-10-02', '2024-10-15'),
+('Elemento de amarre con Absorbedor', '612413-020JE12207 Steel', '237583493612413-020CE-PC-191211-017-24-3A', 'EN 355:2002, EN 354:2002, EN 362:2005', 'ACCESUS', '2034-10-02', '2024-10-15');
+
+INSERT INTO global_epi_templates (epi_nombre, modelo, referencia, norma_ce, proveedor) VALUES
+('Casco con Barboquejo', 'GR - 8492', '8492', 'EN397:2012 +A1:2012, EN50365:2002', 'FARU (AMARILLO)'),
+('Casco con Barboquejo', 'Climber - Series', '80049', 'EN 397 Industria, E 50365 riesgo eléctrico', 'SAFETOP (AZUL)'),
+('Suspensión casco', 'Climber - Series', '80657', 'EN 397 Industria, E 50365 riesgo eléctrico', 'SAFETOP (AZUL)'),
+('Barboquejo casco', 'Climber - Series', '80651', 'EN 397 Industria, E 50365 riesgo eléctrico', 'SAFETOP (AZUL)'),
+('Zapato de seguridad', 'ZION SUPER FERROS3 NEGRO', '734041700', 'EN ISO 20345:2022 S3 HI CI SRC', 'PANTER'),
+('2 Pares de Guantes', 'PU 1400 ECO-PU', '', 'EN 388:2016+A1:2018', 'JUBA'),
+('Guante Flor vacuno blanco', '160BGZ0161/291G/12', '', 'EN 388:2016, EN 407:2004, EN 420:2003+A1:2009', 'TOMAS BODERO GROUP'),
+('Chaleco reflectante', '1030C', '', '89/686/CEE, ISO 20471/2013', 'CHINTEX SL'),
+('Mascarilla', 'FFP2 NR.50 TLV21700H', '', 'EN 149 + A1', 'SAFETOP');
+
+
 -- -----------------------------------------------------------------------------
 -- SCRIPT DE LIMPIEZA TOTAL (Para empezar con datos reales)
 -- -----------------------------------------------------------------------------
