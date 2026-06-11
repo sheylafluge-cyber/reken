@@ -572,7 +572,10 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
       }
     });
 
-    const { error } = await supabaseClient.from('profiles').update(form).eq('id', profile.id);
+    // Limpiar campos virtuales que no existen en la DB para evitar Error 400
+    const { custom_titles, ...cleanForm } = form;
+
+    const { error } = await supabaseClient.from('profiles').update(cleanForm).eq('id', profile.id);
     if (!error) {
       // Notificar a admins si un empleado cambia sus datos
       if (currentUser && currentUser.role !== 'admin') {
