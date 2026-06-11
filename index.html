@@ -379,7 +379,6 @@ function AuthPage({ toast, onBypass }) {
             <input 
               value={username} 
               onChange={e=>setUsername(e.target.value)} 
-              placeholder="Ej: sheila" 
               autoFocus
             />
           </div>
@@ -729,6 +728,78 @@ function EpiModal({ epi, onSave, onCancel }) {
   );
 }
 
+function ExportSelectorModal({ docs, onConfirm, onCancel }) {
+  const [selectedIds, setSelectedIds] = useState(docs.map(d => d.id));
+
+  const toggle = (id) => {
+    setSelectedIds(p => p.includes(id) ? p.filter(i => i !== id) : [...p, id]);
+  };
+
+  return (
+    <div className="modal-overlay" style={{zIndex: 600}}>
+      <div className="modal" style={{maxWidth: 450}}>
+        <div className="modal-header">
+          <h2>Exportar Dossier PDF</h2>
+          <button className="btn btn-secondary" onClick={onCancel}><i className="fa-solid fa-xmark"></i></button>
+        </div>
+        <div className="modal-body">
+          <p style={{fontSize: 13, color: 'var(--text2)', marginBottom: 15}}>Selecciona los documentos que quieres incluir en el PDF:</p>
+          
+          <div style={{display: 'flex', gap: 10, marginBottom: 15}}>
+            <button className="btn btn-secondary" style={{padding: '5px 10px', fontSize: 11}} onClick={() => setSelectedIds(docs.map(d => d.id))}>Seleccionar todos</button>
+            <button className="btn btn-secondary" style={{padding: '5px 10px', fontSize: 11}} onClick={() => setSelectedIds([])}>Desmarcar todos</button>
+          </div>
+
+          <div style={{maxHeight: 300, overflowY: 'auto', background: 'var(--bg3)', padding: 10, borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 6}}>
+            {docs.length === 0 ? (
+              <div style={{textAlign: 'center', padding: 20, color: 'var(--text3)', fontSize: 13}}>No hay documentos subidos</div>
+            ) : docs.map(doc => {
+              const isSelected = selectedIds.includes(doc.id);
+              // Obtener nombre amigable de la categoría
+              const catLabel = DOC_CATEGORIES.find(c => c.k === doc.categoria)?.l || doc.categoria.replace('title_', 'Título: ');
+              
+              return (
+                <div 
+                  key={doc.id} 
+                  onClick={() => toggle(doc.id)}
+                  style={{
+                    padding: '10px', 
+                    background: isSelected ? 'var(--accent-bg)' : 'var(--bg2)', 
+                    border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <i className={isSelected ? "fa-solid fa-square-check" : "fa-regular fa-square"} style={{color: isSelected ? 'var(--accent)' : 'var(--text3)', fontSize: 18}}></i>
+                  <div style={{flex: 1}}>
+                    <div style={{fontSize: 13, fontWeight: 600}}>{catLabel}</div>
+                    <div style={{fontSize: 11, color: 'var(--text2)'}}>{doc.nombre_archivo}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{display: 'flex', gap: 10, marginTop: 20}}>
+            <button 
+              className="btn btn-primary btn-full" 
+              onClick={() => onConfirm(selectedIds)}
+              disabled={false}
+            >
+              Generar PDF con {selectedIds.length} anexos
+            </button>
+            <button className="btn btn-secondary" onClick={onCancel}>Cancelar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, currentUser }) {
   const [form, setForm] = useState({...profile});
   const [docsList, setDocsList] = useState([]);
@@ -742,16 +813,18 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
   const [viewingPhoto, setViewingPhoto] = useState(null); // {url, epiId}
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [showExportSelector, setShowExportSelector] = useState(false);
 
-  const generateDossier = async () => {
+  const generateDossier = async (selectedDocIds) => {
+    setShowExportSelector(false);
     setExporting(true);
     try {
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF();
       
-      // 1. Cabecera y Datos Básicos
+      // 1. Cabecera y Datos Básicos (Mismo código anterior...)
       pdf.setFontSize(22);
-      pdf.setTextColor(255, 51, 153); // Color rosa accent
+      pdf.setTextColor(255, 51, 153);
       pdf.text('DOSSIER DEL TRABAJADOR', 20, 30);
       
       pdf.setFontSize(10);
@@ -787,7 +860,7 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
       if (roles.length === 0) roles.push('Operativo');
       pdf.text(roles.join(' · '), 25, y);
       
-      // 2. EPIs
+      // EPIs
       y += 20;
       pdf.setFont("helvetica", "bold");
       pdf.text('EQUIPOS DE PROTECCIÓN (EPIs):', 20, y);
@@ -805,8 +878,9 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
         });
       }
 
-      // 3. ANEXO DE DOCUMENTOS (Imágenes)
+      // 3. ANEXO DE DOCUMENTOS (Filtrados por selección)
       const imagesToAttach = docsList.filter(d => {
+        if (!selectedDocIds.includes(d.id)) return false;
         const ext = d.nombre_archivo.split('.').pop().toLowerCase();
         return ['jpg', 'jpeg', 'png', 'webp'].includes(ext);
       });
@@ -825,7 +899,6 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
             pdf.setTextColor(0);
             pdf.text(catLabel.toUpperCase(), 20, 20);
             
-            // Cargar imagen y añadir al PDF
             const img = await new Promise((resolve, reject) => {
               const image = new Image();
               image.crossOrigin = "Anonymous";
@@ -841,7 +914,6 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
             ctx.drawImage(img, 0, 0);
             const base64 = canvas.toDataURL('image/jpeg', 0.8);
             
-            // Ajustar imagen a la página
             const pageWidth = pdf.internal.pageSize.getWidth();
             const pageHeight = pdf.internal.pageSize.getHeight();
             const ratio = Math.min((pageWidth - 40) / img.width, (pageHeight - 50) / img.height);
@@ -1380,7 +1452,7 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
         </button>
         
         {isAdmin && (
-          <button className="btn btn-secondary" onClick={generateDossier} disabled={saving || exporting} style={{flex: 1, minWidth: '200px'}}>
+          <button className="btn btn-secondary" onClick={() => setShowExportSelector(true)} disabled={saving || exporting} style={{flex: 1, minWidth: '200px'}}>
             <i className={`fa-solid ${exporting ? 'fa-spinner fa-spin' : 'fa-file-pdf'}`}></i>
             {exporting ? ' Generando Dossier...' : ' Exportar Dossier PDF'}
           </button>
@@ -1388,6 +1460,15 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
         
         <button className="btn btn-secondary" onClick={onCancel} disabled={saving || exporting}>Cancelar</button>
       </div>
+
+      {showExportSelector && ReactDOM.createPortal(
+        <ExportSelectorModal 
+          docs={docsList} 
+          onConfirm={generateDossier} 
+          onCancel={() => setShowExportSelector(false)} 
+        />,
+        document.body
+      )}
     </>
   );
 }
