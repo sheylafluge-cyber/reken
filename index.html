@@ -203,6 +203,10 @@
         display: none !important;
       }
     }
+    .modal-overlay.minimized-overlay { pointer-events: none; background: transparent; }
+    .modal.minimized-modal { position: fixed; bottom: 20px; right: 20px; width: 350px; maxWidth: 350px; zIndex: 1000; pointer-events: auto; }
+    .modal.minimized-modal .modal-header { padding: 10px 15px; border-bottom: none; borderRadius: 12px; }
+    .modal.minimized-modal .modal-body { display: none; }
   </style>
 </head>
 <body>
@@ -756,32 +760,63 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
   };
 
   const saveEpi = async (epiData) => {
-    // Si tiene ID y no empieza por 'temp_', es una edición de uno existente en DB
+    // 1. Actualizar el estado local (episList)
+    // Sincronizamos también la foto en cualquier otro EPI con el mismo nombre en la lista local actual
     if (epiData.id && !epiData.id.toString().startsWith('temp_')) {
-      setEpisList(p => p.map(e => e.id === epiData.id ? epiData : e));
+      setEpisList(p => p.map(e => (e.id === epiData.id || e.epi_nombre === epiData.epi_nombre) ? { ...e, ...epiData, id: e.id } : e));
     } else {
       const tempId = 'temp_' + Date.now();
       const newEpi = { ...epiData, id: tempId, profile_id: profile.id, isNew: true };
-      setEpisList(p => [...p, newEpi]);
-      
-      // Intentar guardar como plantilla global para que aparezca en la "Lista Estándar"
-      try {
-        // Limpiamos campos que no deben ir a la plantilla global
+      setEpisList(p => {
+        // Actualizar fotos de otros con mismo nombre si ya existen localmente
+        const updated = p.map(e => e.epi_nombre === epiData.epi_nombre ? { ...e, foto_url: epiData.foto_url } : e);
+        return [...updated, newEpi];
+      });
+    }
+
+    // 2. SINCRONIZACIÓN GLOBAL EN BASE DE DATOS
+    try {
+      if (epiData.epi_nombre) {
+        // A. Actualizar/Insertar en la lista de plantillas globales
         const { id, profile_id, isNew, fecha_fabricacion, fecha_caducidad, fecha_compra, ...templateData } = epiData;
         
-        // Solo guardamos si tiene al menos un nombre
-        if (templateData.epi_nombre) {
-          const { error } = await supabaseClient.from('global_epi_templates').insert([templateData]);
-          if (error) {
-            console.error('Error de Supabase al guardar plantilla:', error);
-          } else {
-            console.log('EPI guardado con éxito en la lista global (plantillas)');
-          }
+        const { data: existingTemplates } = await supabaseClient
+          .from('global_epi_templates')
+          .select('id')
+          .eq('epi_nombre', epiData.epi_nombre);
+
+        if (existingTemplates && existingTemplates.length > 0) {
+          // Actualizamos la plantilla existente (principalmente la foto y datos base)
+          await supabaseClient
+            .from('global_epi_templates')
+            .update({ 
+              foto_url: epiData.foto_url,
+              modelo: epiData.modelo,
+              referencia: epiData.referencia,
+              norma_ce: epiData.norma_ce,
+              proveedor: epiData.proveedor
+            })
+            .eq('epi_nombre', epiData.epi_nombre);
+        } else {
+          // Si no existe, creamos la plantilla global
+          await supabaseClient.from('global_epi_templates').insert([templateData]);
         }
-      } catch (err) {
-        console.error('Excepción al intentar guardar plantilla global:', err);
+
+        // B. Sincronizar con TODOS los registros de empleados que tengan este mismo EPI
+        // Solo sincronizamos la foto si ésta ha sido proporcionada
+        if (epiData.foto_url) {
+          await supabaseClient
+            .from('employee_epis')
+            .update({ foto_url: epiData.foto_url })
+            .eq('epi_nombre', epiData.epi_nombre);
+        }
+        
+        console.log('Sincronización global de EPI realizada para:', epiData.epi_nombre);
       }
+    } catch (err) {
+      console.error('Error en sincronización global de EPI:', err);
     }
+
     setShowEpiModal(false);
     setEditingEpi(null);
   };
@@ -1950,6 +1985,141 @@ function GeneralCalendarView({ employees, toast, setSelectedEmp, sendNotificatio
   );
 }
 
+function GlobalEpisInventory({ isAdmin }) {
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [editingEpi, setEditingEpi] = useState(null);
+
+  const fetchTemplates = async () => {
+    setLoading(true);
+    const { data, error } = await supabaseClient.from('global_epi_templates').select('*').order('epi_nombre');
+    if (!error) setTemplates(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
+
+  const filtered = templates.filter(t => 
+    t.epi_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (t.modelo && t.modelo.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (t.proveedor && t.proveedor.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const handleSave = async (epiData) => {
+    try {
+      const { id, created_at, ...cleanData } = epiData;
+      if (id && !id.toString().startsWith('temp_')) {
+        await supabaseClient.from('global_epi_templates').update(cleanData).eq('id', id);
+        
+        // Sincronizar foto globalmente si se ha cambiado
+        if (cleanData.foto_url) {
+          await supabaseClient.from('employee_epis').update({ foto_url: cleanData.foto_url }).eq('epi_nombre', cleanData.epi_nombre);
+        }
+      } else {
+        await supabaseClient.from('global_epi_templates').insert([cleanData]);
+      }
+      fetchTemplates();
+      setShowModal(false);
+      setEditingEpi(null);
+    } catch (err) {
+      console.error('Error al guardar EPI global:', err);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('¿Seguro que quieres eliminar este EPI de la lista global? No se borrará de las fichas de los empleados que ya lo tengan.')) return;
+    await supabaseClient.from('global_epi_templates').delete().eq('id', id);
+    fetchTemplates();
+  };
+
+  return (
+    <div>
+      <div className="page-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+        <h1>Inventario de EPIs</h1>
+        {isAdmin && (
+          <button className="btn btn-primary" onClick={() => { setEditingEpi(null); setShowModal(true); }}>
+            <i className="fa-solid fa-plus"></i> Nuevo Equipo Global
+          </button>
+        )}
+      </div>
+
+      <div className="card" style={{marginBottom: 20}}>
+        <div style={{position: 'relative'}}>
+          <i className="fa-solid fa-magnifying-glass" style={{position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)', fontSize: 13}}></i>
+          <input 
+            type="text" 
+            placeholder="Buscar por nombre, modelo o proveedor..." 
+            value={searchTerm} 
+            onChange={e => setSearchTerm(e.target.value)}
+            style={{paddingLeft: 35}}
+          />
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{textAlign: 'center', padding: '50px 0'}}>
+          <i className="fa-solid fa-circle-notch fa-spin" style={{fontSize: 30, color: 'var(--accent)', marginBottom: 15}}></i>
+          <div>Cargando inventario...</div>
+        </div>
+      ) : (
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20}}>
+          {filtered.length === 0 ? (
+            <div className="card" style={{gridColumn: '1/-1', textAlign: 'center', padding: 40, color: 'var(--text3)'}}>
+              <i className="fa-solid fa-helmet-safety" style={{fontSize: 40, marginBottom: 15, opacity: 0.2}}></i>
+              <p>No se han encontrado equipos en el inventario.</p>
+            </div>
+          ) : filtered.map(epi => (
+            <div key={epi.id} className="card" style={{padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column'}}>
+              <div style={{width: '100%', aspectRatio: '16/9', background: 'var(--bg3)', position: 'relative'}}>
+                {epi.foto_url ? (
+                  <img src={epi.foto_url} style={{width: '100%', height: '100%', objectFit: 'cover'}} alt={epi.epi_nombre} />
+                ) : (
+                  <div style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                    <i className="fa-solid fa-camera" style={{fontSize: 30, color: 'var(--text3)', opacity: 0.3}}></i>
+                  </div>
+                )}
+              </div>
+              <div style={{padding: 15, flex: 1}}>
+                <div style={{fontWeight: 700, fontSize: 16, marginBottom: 5}}>{epi.epi_nombre}</div>
+                <div style={{fontSize: 13, color: 'var(--text2)', marginBottom: 10}}>
+                  {epi.modelo || 'Sin modelo'} {epi.proveedor ? `· ${epi.proveedor}` : ''}
+                </div>
+                {epi.norma_ce && (
+                  <div style={{fontSize: 11, background: 'var(--bg3)', padding: '4px 8px', borderRadius: 4, display: 'inline-block'}}>
+                    Norma: {epi.norma_ce}
+                  </div>
+                )}
+              </div>
+              {isAdmin && (
+                <div style={{padding: 10, borderTop: '1px solid var(--border)', display: 'flex', gap: 8, background: 'var(--bg2)'}}>
+                  <button className="btn btn-secondary btn-full" onClick={() => { setEditingEpi(epi); setShowModal(true); }}>
+                    <i className="fa-solid fa-pen"></i> Editar
+                  </button>
+                  <button className="btn btn-danger" onClick={() => handleDelete(epi.id)}>
+                    <i className="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showModal && (
+        <EpiModal 
+          epi={editingEpi} 
+          onSave={handleSave} 
+          onCancel={() => { setShowModal(false); setEditingEpi(null); }} 
+        />
+      )}
+    </div>
+  );
+}
+
 function MainApp() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -1966,6 +2136,59 @@ function MainApp() {
   const [showEventModal, setShowEventModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [toasts, setToasts] = useState([]);
+
+  // Estados para modal de empleado draggable y minimizable
+  const [empModalPos, setEmpModalPos] = useState({ x: 0, y: 0 });
+  const [isEmpModalMinimized, setIsEmpModalMinimized] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  const handleMouseDown = (e) => {
+    if (isEmpModalMinimized) return;
+    // Solo arrastrar desde el header
+    if (e.target.closest('.modal-header')) {
+      setIsDragging(true);
+      setDragOffset({
+        x: e.clientX - empModalPos.x,
+        y: e.clientY - empModalPos.y
+      });
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDragging) {
+      setEmpModalPos({
+        x: e.clientX - dragOffset.x,
+        y: e.clientY - dragOffset.y
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    } else {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragOffset]);
+
+  // Resetear posición cuando se abre
+  useEffect(() => {
+    if (selectedEmp) {
+      setEmpModalPos({ x: 0, y: 0 });
+      setIsEmpModalMinimized(false);
+    }
+  }, [selectedEmp]);
 
   const sendNotification = async (profileId, title, message, type, isForAdmin = false) => {
     try {
@@ -2261,6 +2484,7 @@ function MainApp() {
           {isAdmin && <button className={`nav-item ${page==='employees'?'active':''}`} onClick={()=>{setPage('employees'); setSidebarOpen(false);}}><i className="fa-solid fa-users"></i> Empleados</button>}
           {isAdmin && <button className={`nav-item ${page==='gencal'?'active':''}`} onClick={()=>{setPage('gencal'); setSidebarOpen(false);}}><i className="fa-solid fa-calendar-days"></i> Calendario General</button>}
           {!isAdmin && <button className={`nav-item ${page==='mycal'?'active':''}`} onClick={()=>{setPage('mycal'); setSidebarOpen(false);}}><i className="fa-solid fa-calendar"></i> Mi Disponibilidad</button>}
+          <button className={`nav-item ${page==='epis_global'?'active':''}`} onClick={()=>{setPage('epis_global'); setSidebarOpen(false);}}><i className="fa-solid fa-helmet-safety"></i> Inventario de EPIs</button>
           
           <button className={`nav-item ${showNotifications?'active':''}`} onClick={()=>{setShowNotifications(!showNotifications); setSidebarOpen(false);}}>
             <i className="fa-solid fa-bell"></i> Notificaciones 
@@ -2548,37 +2772,80 @@ function MainApp() {
             <CalendarView userId={profile.id} isAdmin={false} toast={toast} />
           </div>
         )}
-      </main>
+
+        {page === 'epis_global' && (
+          <GlobalEpisInventory isAdmin={isAdmin} />
+        )}
+        </main>
 
       {selectedEmp && (
-        <div className="modal-overlay">
-          <div className="modal" style={{maxWidth: 1000}}>
-            <div className="modal-header">
-              <div>
-                <h2>Ficha: {selectedEmp.nombre} {selectedEmp.apellidos || ''}</h2>
-                <p style={{fontSize: 12, color: 'var(--text3)'}}>{selectedEmp.role === 'admin' ? 'Personal de Administración' : 'Personal Operativo'}</p>
-              </div>
-              <button className="btn btn-secondary" onClick={()=>setSelectedEmp(null)}><i className="fa-solid fa-xmark"></i></button>
-            </div>
-            <div className="modal-body">
-              <div className="tabs">
-                <button className="tab active">Datos</button>
-              </div>
-              <EmployeeForm 
-                profile={selectedEmp} 
-                isAdmin={isAdmin} 
-                onSave={()=>{loadEmployees(); setSelectedEmp(null);}} 
-                onCancel={()=>setSelectedEmp(null)} 
-                sendNotification={sendNotification}
-                currentUser={profile}
-              />
-              {selectedEmp.role !== 'admin' && (
-                <div style={{marginTop: 20}}>
-                  <h4 style={{marginBottom: 10, fontSize: 13}}>DISPONIBILIDAD</h4>
-                  <CalendarView userId={selectedEmp.id} isAdmin={true} toast={toast} />
+        <div 
+          className={`modal-overlay ${isEmpModalMinimized ? 'minimized-overlay' : ''}`} 
+          style={isEmpModalMinimized ? { pointerEvents: 'none', background: 'transparent' } : {}}
+        >
+          <div 
+            className={`modal ${isEmpModalMinimized ? 'minimized-modal' : ''}`} 
+            style={{
+              maxWidth: 1000, 
+              transform: isEmpModalMinimized ? 'none' : `translate(${empModalPos.x}px, ${empModalPos.y}px)`,
+              transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: isEmpModalMinimized ? '0 10px 30px rgba(0,0,0,0.4)' : '',
+              border: isEmpModalMinimized ? '2px solid var(--accent)' : '',
+              position: isEmpModalMinimized ? 'fixed' : 'relative'
+            }}
+          >
+            <div 
+              className="modal-header" 
+              onMouseDown={handleMouseDown} 
+              style={{ cursor: isEmpModalMinimized ? 'default' : 'move', userSelect: 'none' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
+                <i className="fa-solid fa-user-gear" style={{ color: 'var(--accent)', fontSize: 20 }}></i>
+                <div>
+                  <h2 style={{ fontSize: 16 }}>Ficha: {selectedEmp.nombre} {selectedEmp.apellidos || ''}</h2>
+                  {!isEmpModalMinimized && <p style={{ fontSize: 11, color: 'var(--text3)' }}>{selectedEmp.role === 'admin' ? 'Personal de Administración' : 'Personal Operativo'}</p>}
                 </div>
-              )}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ width: 32, height: 32, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
+                  onClick={() => setIsEmpModalMinimized(!isEmpModalMinimized)}
+                  title={isEmpModalMinimized ? 'Restaurar' : 'Minimizar'}
+                >
+                  <i className={`fa-solid ${isEmpModalMinimized ? 'fa-window-maximize' : 'fa-window-minimize'}`}></i>
+                </button>
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ width: 32, height: 32, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
+                  onClick={() => setSelectedEmp(null)}
+                  title="Cerrar"
+                >
+                  <i className="fa-solid fa-xmark"></i>
+                </button>
+              </div>
             </div>
+            {!isEmpModalMinimized && (
+              <div className="modal-body">
+                <div className="tabs">
+                  <button className="tab active">Datos</button>
+                </div>
+                <EmployeeForm 
+                  profile={selectedEmp} 
+                  isAdmin={isAdmin} 
+                  onSave={() => { loadEmployees(); setSelectedEmp(null); }} 
+                  onCancel={() => setSelectedEmp(null)} 
+                  sendNotification={sendNotification}
+                  currentUser={profile}
+                />
+                {selectedEmp.role !== 'admin' && (
+                  <div style={{ marginTop: 20 }}>
+                    <h4 style={{ marginBottom: 10, fontSize: 13 }}>DISPONIBILIDAD</h4>
+                    <CalendarView userId={selectedEmp.id} isAdmin={true} toast={toast} />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
