@@ -941,22 +941,20 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
         ctx.drawImage(logoImg, 0, 0);
         const watermarkBase64 = canvas.toDataURL('image/png');
 
-        const pageCount = pdf.internal.getNumberOfPages();
-        for (let i = 1; i <= pageCount; i++) {
-          pdf.setPage(i);
-          const pageWidth = pdf.internal.pageSize.getWidth();
-          const pageHeight = pdf.internal.pageSize.getHeight();
-          
-          // Definir tamaño de la marca de agua en el PDF (ejemplo: 120 mm de ancho)
-          const logoWidth = 120;
-          const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-          
-          // Centrar en la página
-          const x = (pageWidth - logoWidth) / 2;
-          const y = (pageHeight - logoHeight) / 2;
-          
-          pdf.addImage(watermarkBase64, 'PNG', x, y, logoWidth, logoHeight, undefined, 'FAST');
-        }
+        // Nos aseguramos de situarnos únicamente en la primera página
+        pdf.setPage(1);
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        
+        // Definir tamaño de la marca de agua en el PDF (ejemplo: 120 mm de ancho)
+        const logoWidth = 120;
+        const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
+        
+        // Centrar en la página
+        const x = (pageWidth - logoWidth) / 2;
+        const y = (pageHeight - logoHeight) / 2;
+        
+        pdf.addImage(watermarkBase64, 'PNG', x, y, logoWidth, logoHeight, undefined, 'FAST');
       } catch (watermarkErr) {
         console.error('Error al aplicar la marca de agua:', watermarkErr);
       }
