@@ -85,7 +85,21 @@ BEGIN
   END IF;
 END $$;
 
--- Inserción de los 14 EPIs estándar iniciales
+-- -----------------------------------------------------------------------------
+-- ACTUALIZACIÓN DE TABLAS EXISTENTES (Si ya las tenías creadas)
+-- -----------------------------------------------------------------------------
+ALTER TABLE employee_epis ADD COLUMN IF NOT EXISTS foto_url TEXT;
+ALTER TABLE employee_epis ADD COLUMN IF NOT EXISTS fecha_fabricacion DATE;
+ALTER TABLE employee_epis ADD COLUMN IF NOT EXISTS fecha_compra DATE;
+ALTER TABLE employee_epis ADD COLUMN IF NOT EXISTS norma_ce TEXT;
+
+ALTER TABLE global_epi_templates ADD COLUMN IF NOT EXISTS foto_url TEXT;
+ALTER TABLE global_epi_templates ADD COLUMN IF NOT EXISTS fecha_fabricacion_default DATE;
+ALTER TABLE global_epi_templates ADD COLUMN IF NOT EXISTS fecha_compra_default DATE;
+
+-- -----------------------------------------------------------------------------
+-- INSERCIÓN DE EPIs ESTÁNDAR INICIALES
+-- -----------------------------------------------------------------------------
 INSERT INTO global_epi_templates (epi_nombre, modelo, referencia, norma_ce, proveedor, fecha_fabricacion_default) VALUES
 ('Arnés anticaídas', '80077B2301340-271', '2777/12558-02/E01-02', '', 'SAFETOP', '2024-10-02'),
 ('Arnés anticaídas', '80077B2301340-090', '2777/12558-02/E01-02', '', 'SAFETOP', '2024-10-02'),
@@ -128,4 +142,3 @@ DELETE FROM notifications;
 -- (Esto evita que te quedes fuera de la aplicación)
 DELETE FROM profiles WHERE role != 'admin';
 */
-
