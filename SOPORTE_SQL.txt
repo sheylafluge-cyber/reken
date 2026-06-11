@@ -35,3 +35,27 @@ BEGIN
     CREATE POLICY "Acceso total títulos personalizados" ON employee_titles FOR ALL USING (true) WITH CHECK (true);
   END IF;
 END $$;
+
+
+-- -----------------------------------------------------------------------------
+-- SCRIPT DE LIMPIEZA TOTAL (Para empezar con datos reales)
+-- -----------------------------------------------------------------------------
+-- Copia y ejecuta lo siguiente si quieres borrar todos los datos ficticios:
+
+/*
+-- 1. Borrar asignaciones y documentos de eventos
+DELETE FROM event_assignments;
+DELETE FROM event_documents;
+DELETE FROM events;
+
+-- 2. Borrar datos de empleados (títulos, documentos, disponibilidad)
+DELETE FROM employee_titles;
+DELETE FROM documentos;
+DELETE FROM unavailable_days;
+DELETE FROM notifications;
+
+-- 3. Borrar perfiles que NO sean administradores
+-- (Esto evita que te quedes fuera de la aplicación)
+DELETE FROM profiles WHERE role != 'admin';
+*/
+
