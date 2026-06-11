@@ -568,172 +568,111 @@ function EpiModal({ epi, onSave, onCancel }) {
 function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, currentUser }) {
   const [form, setForm] = useState({...profile});
   const [docsList, setDocsList] = useState([]);
-  const [titlesList, setTitlesList] = useState([]);
-  const [episList, setEpisList] = useState([]);
+  const [titlesList, setTitlesList] = useState([...(profile.custom_titles || [])]);
+  const [episList, setEpisList] = useState([...(profile.epis || [])]);
   const [uploading, setUploading] = useState(null);
   const [newTitle, setNewTitle] = useState({ nombre: '', fecha: '' });
   const [showEpiModal, setShowEpiModal] = useState(false);
   const [showDefaultSelector, setShowDefaultSelector] = useState(false);
   const [editingEpi, setEditingEpi] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   const loadDocs = useCallback(async () => {
     const { data: docs } = await supabaseClient.from('documentos').select('*').eq('profile_id', profile.id);
     setDocsList(docs || []);
-    
-    const { data: titles } = await supabaseClient.from('employee_titles').select('*').eq('profile_id', profile.id);
-    setTitlesList(titles || []);
-
-    const { data: epis } = await supabaseClient.from('employee_epis').select('*').eq('profile_id', profile.id);
-    setEpisList(epis || []);
   }, [profile.id]);
 
   useEffect(() => { loadDocs(); }, [loadDocs]);
 
-  const saveEpi = async (epiData) => {
+  const handleTitleAdd = () => {
+    if (!newTitle.nombre) return;
+    const tempId = 'temp_' + Date.now();
+    setTitlesList(p => [...p, { id: tempId, nombre: newTitle.nombre, fecha_caducidad: newTitle.fecha || null, profile_id: profile.id, isNew: true }]);
+    setNewTitle({ nombre: '', fecha: '' });
+  };
+
+  const deleteTitle = (title) => {
+    if (!confirm(`¿Eliminar el título "${title.nombre}"?`)) return;
+    setTitlesList(p => p.filter(t => t.id !== title.id));
+  };
+
+  const saveEpi = (epiData) => {
     if (epiData.id) {
-      await supabaseClient.from('employee_epis').update(epiData).eq('id', epiData.id);
+      setEpisList(p => p.map(e => e.id === epiData.id ? epiData : e));
     } else {
-      await supabaseClient.from('employee_epis').insert({ ...epiData, profile_id: profile.id });
+      setEpisList(p => [...p, { ...epiData, id: 'temp_' + Date.now(), profile_id: profile.id, isNew: true }]);
     }
-    loadDocs();
     setShowEpiModal(false);
     setEditingEpi(null);
   };
 
-  const deleteEpi = async (id) => {
+  const deleteEpi = (id) => {
     if (!confirm('¿Seguro que quieres eliminar este EPI?')) return;
-    await supabaseClient.from('employee_epis').delete().eq('id', id);
-    loadDocs();
+    setEpisList(p => p.filter(e => e.id !== id));
   };
 
-  const applyDefaultEpis = async (selectedEpis) => {
-    const episToInsert = selectedEpis.map(epi => ({ ...epi, profile_id: profile.id }));
-    await supabaseClient.from('employee_epis').insert(episToInsert);
-    await loadDocs();
+  const applyDefaultEpis = (selectedEpis) => {
+    const newEpis = selectedEpis.map(epi => ({ ...epi, id: 'temp_' + Date.now() + Math.random(), profile_id: profile.id, isNew: true }));
+    setEpisList(p => [...p, ...newEpis]);
     setShowDefaultSelector(false);
-    toast('EPIs añadidos con éxito', 'success');
-  };
-
-  const handleTitleAdd = async () => {
-    if (!newTitle.nombre) {
-      alert('El nombre del título es obligatorio');
-      return;
-    }
-    const { data, error } = await supabaseClient.from('employee_titles').insert({
-      profile_id: profile.id,
-      nombre: newTitle.nombre,
-      fecha_caducidad: newTitle.fecha || null
-    }).select().single();
-    
-    if (!error) {
-      setTitlesList(p => [...p, data]);
-      setNewTitle({ nombre: '', fecha: '' });
-    }
-  };
-
-  const deleteTitle = async (title) => {
-    if (!confirm(`¿Eliminar el título "${title.nombre}"?`)) return;
-    
-    // Primero borrar archivos asociados de storage
-    const titleDocs = docsList.filter(d => d.categoria === `title_${title.id}`);
-    if (titleDocs.length > 0) {
-      await supabaseClient.storage.from('documentos').remove(titleDocs.map(d => d.storage_path));
-      await supabaseClient.from('documentos').delete().eq('profile_id', profile.id).like('categoria', `title_${title.id}`);
-    }
-    
-    await supabaseClient.from('employee_titles').delete().eq('id', title.id);
-    loadDocs();
   };
 
   const handleUpload = async (files, category) => {
     if (!files || files.length === 0) return;
-    
     setUploading(category);
-    
     for (const file of files) {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${profile.id}_${category}_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-      
-      const { error: uploadError } = await supabaseClient.storage
-        .from('documentos')
-        .upload(fileName, file);
-
-      if (uploadError) {
-        console.error('Error subiendo:', file.name, uploadError);
-      } else {
-        const { data: { publicUrl } } = supabaseClient.storage
-          .from('documentos')
-          .getPublicUrl(fileName);
-        
-        await supabaseClient.from('documentos').insert({
-          profile_id: profile.id,
-          categoria: category,
-          nombre_archivo: file.name,
-          url: publicUrl,
-          storage_path: fileName
-        });
-
-        // Notificar a admins si un empleado sube un archivo
-        if (currentUser && currentUser.role !== 'admin') {
-          const catLabel = DOC_CATEGORIES.find(c => c.k === category)?.l || category;
-          sendNotification(null, 'Nuevo archivo subido', `${currentUser.nombre} ha subido: ${file.name} (${catLabel})`, 'doc_upload', true);
-        }
+      const fileName = `${profile.id}_${category}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      const { error: uploadError } = await supabaseClient.storage.from('documentos').upload(fileName, file);
+      if (!uploadError) {
+        const { data: { publicUrl } } = supabaseClient.storage.from('documentos').getPublicUrl(fileName);
+        await supabaseClient.from('documentos').insert({ profile_id: profile.id, categoria: category, nombre_archivo: file.name, url: publicUrl, storage_path: fileName });
       }
     }
-    
     loadDocs();
     setUploading(null);
   };
 
   const deleteDoc = async (doc) => {
     if (!confirm('¿Seguro que quieres eliminar este archivo?')) return;
-    const { error } = await supabaseClient.storage.from('documentos').remove([doc.storage_path]);
-    if (!error) {
-      await supabaseClient.from('documentos').delete().eq('id', doc.id);
-      
-      // Notificar a admins si un empleado elimina un archivo
-      if (currentUser && currentUser.role !== 'admin') {
-        const catLabel = DOC_CATEGORIES.find(c => c.k === doc.categoria)?.l || doc.categoria;
-        sendNotification(null, 'Archivo eliminado', `${currentUser.nombre} ha eliminado el archivo: ${doc.nombre_archivo} (${catLabel})`, 'doc_delete', true);
-      }
-      
-      loadDocs();
-    }
+    await supabaseClient.storage.from('documentos').remove([doc.storage_path]);
+    await supabaseClient.from('documentos').delete().eq('id', doc.id);
+    loadDocs();
   };
 
   const save = async () => {
-    // Detectar cambios exactos
-    const changes = [];
-    const fields = {
-      nombre: 'Nombre', apellidos: 'Apellidos', username: 'Usuario',
-      dni: 'DNI', tarjeta_sanitaria: 'Tarjeta Sanitaria', ccc: 'CCC',
-      telefono: 'Teléfono', prl_art19_fecha: 'Fecha PRL Art. 19',
-      prl_60h_fecha: 'Fecha PRL 60h', carretilla_fecha: 'Fecha Carretilla',
-      reconocimiento_fecha: 'Fecha Reconocimiento'
-    };
+    setSaving(true);
+    try {
+      // 1. Guardar Perfil (limpiando campos virtuales)
+      const { custom_titles, epis, ...cleanForm } = form;
+      const { error: profError } = await supabaseClient.from('profiles').update(cleanForm).eq('id', profile.id);
+      if (profError) throw profError;
 
-    Object.keys(fields).forEach(key => {
-      if (form[key] !== profile[key]) {
-        changes.push(fields[key]);
+      // 2. Sincronizar Títulos
+      // Borrar antiguos y meter los actuales (simplificado para asegurar integridad)
+      await supabaseClient.from('employee_titles').delete().eq('profile_id', profile.id);
+      if (titlesList.length > 0) {
+        const titlesToSave = titlesList.map(({id, created_at, isNew, ...rest}) => rest);
+        await supabaseClient.from('employee_titles').insert(titlesToSave);
       }
-    });
 
-    // Limpiar campos virtuales que no existen en la DB para evitar Error 400
-    const { custom_titles, ...cleanForm } = form;
+      // 3. Sincronizar EPIs
+      await supabaseClient.from('employee_epis').delete().eq('profile_id', profile.id);
+      if (episList.length > 0) {
+        const episToSave = episList.map(({id, created_at, isNew, ...rest}) => rest);
+        await supabaseClient.from('employee_epis').insert(episToSave);
+      }
 
-    const { error } = await supabaseClient.from('profiles').update(cleanForm).eq('id', profile.id);
-    if (!error) {
-      // Notificar a admins si un empleado cambia sus datos
+      // Notificaciones si no es admin
       if (currentUser && currentUser.role !== 'admin') {
-        let msg = `${currentUser.nombre} ha actualizado su ficha personal.`;
-        if (changes.length > 0) {
-          msg = `${currentUser.nombre} ha modificado: ${changes.join(', ')}.`;
-        }
-        sendNotification(null, 'Datos actualizados', msg, 'profile_update', true);
+        sendNotification(null, 'Ficha actualizada', `${currentUser.nombre} ha actualizado su ficha completa (datos, títulos y EPIs).`, 'profile_update', true);
       }
+
       onSave(form);
-    } else {
-      console.error('Error al guardar perfil:', error);
+    } catch (err) {
+      console.error('Error al guardar:', err);
+      alert('Error al guardar los datos: ' + (err.message || 'Error desconocido'));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -1027,8 +966,10 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
         )}
         
         <div style={{display:'flex', gap: 10, marginTop: 25}}>
-          <button className="btn btn-primary btn-full" onClick={save}>Guardar Datos y Fechas</button>
-          <button className="btn btn-secondary" onClick={onCancel}>Cancelar</button>
+          <button className="btn btn-primary btn-full" onClick={save} disabled={saving}>
+            {saving ? <><i className="fa-solid fa-spinner fa-spin"></i> Guardando...</> : 'Guardar Datos y Fechas'}
+          </button>
+          <button className="btn btn-secondary" onClick={onCancel} disabled={saving}>Cancelar</button>
         </div>
       </div>
     </div>
