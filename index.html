@@ -331,56 +331,26 @@ function AuthPage({ toast, onBypass }) {
     const cleanUser = username.trim().toLowerCase();
     const cleanPass = pass.trim();
 
-    const email = `${cleanUser}.reken@gmail.com`;
-
     try {
-      // 1. Intentar el login oficial directo en Supabase Auth
-      const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
-        email: email,
-        password: cleanPass
-      });
+      // LOGIN PERSONALIZADO: Buscamos directamente en la tabla profiles
+      const { data: profileData, error: profileError } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('username', cleanUser)
+        .eq('password_manual', cleanPass)
+        .single();
 
-      if (!authError && authData.user) {
-        // Login oficial exitoso. Buscamos el perfil correspondiente
-        const { data: profileData } = await supabaseClient
-          .from('profiles')
-          .select('*')
-          .or(`auth_user_id.eq.${authData.user.id},id.eq.${authData.user.id}`)
-          .single();
-          
-        if (profileData) {
-          if (!profileData.auth_user_id) {
-            await supabaseClient.from('profiles').update({ auth_user_id: authData.user.id }).eq('id', profileData.id);
-            profileData.auth_user_id = authData.user.id;
-          }
-          onBypass(authData.user, profileData);
-        } else {
-          // Si no existe perfil en la tabla profiles (ej. Sheila en su primera entrada), creamos uno básico
-          const isMasterAdmin = cleanUser === 'sheila';
-          const newProfile = {
-            id: authData.user.id,
-            auth_user_id: authData.user.id,
-            username: cleanUser,
-            nombre: isMasterAdmin ? 'Sheyla Admin' : cleanUser,
-            role: isMasterAdmin ? 'admin' : 'employee'
-          };
-          await supabaseClient.from('profiles').insert(newProfile);
-          onBypass(authData.user, newProfile);
-        }
+      if (profileData) {
+        // Usuario encontrado con esa contraseña. 
+        // Simulamos el objeto 'user' de Supabase para que el resto de la app funcione.
+        const mockUser = { id: profileData.id, email: `${cleanUser}.reken@gmail.com` };
+        onBypass(mockUser, profileData);
       } else {
-        // Mensajes detallados para diagnóstico
-        const msg = authError?.message || '';
-        if (msg.includes('Invalid login credentials')) {
-          setError('Usuario o contraseña incorrectos');
-        } else if (msg.includes('Email not confirmed')) {
-          setError('Email no confirmado (Ejecuta el script SQL de confirmación)');
-        } else {
-          setError(`Error: ${msg || 'Fallo en el servidor'}`);
-        }
+        setError('Usuario o contraseña incorrectos');
       }
     } catch (err) {
       console.error('Error en login:', err);
-      setError('Error de conexión con el servidor');
+      setError('Error de conexión o datos incorrectos');
     }
     setLoading(false);
   };
@@ -2753,32 +2723,15 @@ function MainApp() {
     const sb = initSupabase();
     if (!sb) return;
     
-    // MODO BYPASS: ENTRAR COMO ADMIN DIRECTAMENTE
-    const forceAdmin = async () => {
-      const adminId = '00000000-0000-0000-0000-000000000001';
-      setUser({ id: adminId, email: 'admin.reken@gmail.com' });
-      
-      // Intentamos cargar el perfil real de la base de datos
-      const { data } = await sb.from('profiles').select('*').eq('id', adminId).single();
-      if (data) {
-        setProfile(data);
-        loadEmployees();
-        loadEvents(data);
-        loadNotifications(data);
-      } else {
-        // Si no existe en la DB todavía, creamos un perfil mock temporal
-        const mockProfile = { id: adminId, nombre: 'Admin Máster', role: 'admin' };
-        setProfile(mockProfile);
-      }
-      setPage('dashboard');
-    };
-
-    forceAdmin();
-
-    // Mantener la suscripción por si acaso, pero el bypass manda
-    const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
-      // Si hay sesión real la usamos, si no mantenemos el bypass
+    // Restauramos el sistema de sesión original
+    sb.auth.getSession().then(({ data: { session } }) => {
+      // Priorizamos sesión real, pero la app ahora funciona con el bypass de AuthPage
       if (session?.user) loadProfile(session.user.id);
+    });
+
+    const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) loadProfile(session.user.id);
+      else setProfile(null);
     });
     
     // Polling de notificaciones cada 60 segundos
