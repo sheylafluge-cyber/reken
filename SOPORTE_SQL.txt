@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS employee_epis (
   fecha_fabricacion DATE,
   fecha_caducidad DATE,
   fecha_compra DATE,
+  foto_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -72,6 +73,7 @@ CREATE TABLE IF NOT EXISTS global_epi_templates (
   fecha_fabricacion_default DATE,
   fecha_caducidad_default DATE,
   fecha_compra_default DATE,
+  foto_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
