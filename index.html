@@ -831,15 +831,15 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
       pdf.setFontSize(14);
       pdf.setTextColor(0);
       pdf.setFont("helvetica", "bold");
-      pdf.text(`${profile.nombre} ${profile.apellidos || ''}`, 20, 55);
+      pdf.text(`${form.nombre} ${form.apellidos || ''}`, 20, 55);
       
       pdf.setFontSize(10);
       pdf.setFont("helvetica", "normal");
       pdf.setTextColor(80);
-      pdf.text(`DNI: ${profile.dni || '—'}`, 20, 65);
-      pdf.text(`Teléfono: ${profile.telefono || '—'}`, 20, 72);
-      pdf.text(`Email: ${profile.email || '—'}`, 20, 79);
-      pdf.text(`Dirección: ${profile.direccion || '—'}`, 20, 86);
+      pdf.text(`DNI: ${form.dni || '—'}`, 20, 65);
+      pdf.text(`Teléfono: ${form.telefono || '—'}`, 20, 72);
+      pdf.text(`Email: ${form.email || '—'}`, 20, 79);
+      pdf.text(`Dirección: ${form.direccion || '—'}`, 20, 86);
       
       // Especialidades
       let y = 100;
@@ -848,9 +848,9 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
       pdf.setFont("helvetica", "normal");
       y += 7;
       const roles = [];
-      if (profile.es_carga) roles.push('Carga/Descarga');
-      if (profile.es_protocolo) roles.push('Protocolo');
-      if (profile.es_rigger) roles.push('Rigger');
+      if (form.es_carga) roles.push('Carga/Descarga');
+      if (form.es_protocolo) roles.push('Protocolo');
+      if (form.es_rigger) roles.push('Rigger');
       if (roles.length === 0) roles.push('Operativo');
       pdf.text(roles.join(' · '), 25, y);
       
@@ -1269,7 +1269,13 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
           </div>
 
           <div className="form-group"><label>CCC (Cotización)</label><input value={form.ccc||''} onChange={e=>setForm({...form, ccc: e.target.value})} /></div>
-          <div className="form-group"><label>Teléfono</label><input value={form.telefono||''} onChange={e=>setForm({...form, telefono: e.target.value})} /></div>
+          
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 10, marginBottom: 15}}>
+            <div className="form-group" style={{marginBottom: 0}}><label>Email</label><input value={form.email||''} onChange={e=>setForm({...form, email: e.target.value})} /></div>
+            <div className="form-group" style={{marginBottom: 0}}><label>Teléfono</label><input value={form.telefono||''} onChange={e=>setForm({...form, telefono: e.target.value})} /></div>
+          </div>
+
+          <div className="form-group"><label>Dirección</label><input value={form.direccion||''} onChange={e=>setForm({...form, direccion: e.target.value})} /></div>
           
           <div style={{background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8, marginBottom: 15, border: '1px solid var(--border)'}}>
             <label style={{marginBottom: 10, display:'block'}}>ROL / FUNCIÓN PRINCIPAL</label>
