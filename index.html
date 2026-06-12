@@ -2679,6 +2679,17 @@ function MainApp() {
       }
       
       setProfile(currentProfile);
+      
+      // Cargar títulos y EPIs para el perfil actual (evita borrado accidental en 'Mi Ficha')
+      const { data: myTitles } = await supabaseClient.from('employee_titles').select('*').eq('profile_id', currentProfile.id);
+      const { data: myEpis } = await supabaseClient.from('employee_epis').select('*').eq('profile_id', currentProfile.id);
+      
+      setProfile(prev => ({
+        ...prev,
+        custom_titles: myTitles || [],
+        epis: myEpis || []
+      }));
+
       if (currentProfile.role === 'admin') {
         loadEmployees();
       }
