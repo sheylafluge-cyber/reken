@@ -425,18 +425,18 @@ function CalendarView({ userId, isAdmin, toast }) {
 
   return (
     <div className="card">
-      <div style={{display:'flex', justifyContent:'space-between', marginBottom: 15, alignItems:'center'}}>
-        <div style={{display:'flex', gap: 10, alignItems:'center', background: 'var(--bg3)', padding: '4px 12px', borderRadius: '10px', border: '1px solid var(--border)'}}>
-          <button className="btn btn-secondary" style={{padding: '4px 8px', background: 'transparent', border: 'none'}} onClick={()=>setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1))}>
+      <div style={{display:'flex', justifyContent:'space-between', marginBottom: 15, alignItems:'center', flexWrap: 'wrap', gap: 10}}>
+        <div style={{display:'flex', gap: 5, alignItems:'center', background: 'var(--bg3)', padding: '4px 10px', borderRadius: '10px', border: '1px solid var(--border)'}}>
+          <button className="btn btn-secondary" style={{padding: '4px 6px', background: 'transparent', border: 'none'}} onClick={()=>setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1))}>
             <i className="fa-solid fa-chevron-left"></i>
           </button>
           
           <select 
             value={viewDate.getMonth()} 
             onChange={(e) => setViewDate(new Date(viewDate.getFullYear(), parseInt(e.target.value), 1))}
-            style={{background: 'transparent', border: 'none', fontWeight: 600, fontSize: 14, width: 'auto', padding: '2px', cursor: 'pointer', textTransform: 'uppercase'}}
+            style={{background: 'transparent', border: 'none', fontWeight: 600, fontSize: 13, width: 'auto', padding: '2px', cursor: 'pointer', textTransform: 'uppercase'}}
           >
-            {['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((m, i) => (
+            {['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'].map((m, i) => (
               <option key={i} value={i}>{m}</option>
             ))}
           </select>
@@ -444,14 +444,14 @@ function CalendarView({ userId, isAdmin, toast }) {
           <select 
             value={viewDate.getFullYear()} 
             onChange={(e) => setViewDate(new Date(parseInt(e.target.value), viewDate.getMonth(), 1))}
-            style={{background: 'transparent', border: 'none', fontWeight: 600, fontSize: 14, width: 'auto', padding: '2px', cursor: 'pointer'}}
+            style={{background: 'transparent', border: 'none', fontWeight: 600, fontSize: 13, width: 'auto', padding: '2px', cursor: 'pointer'}}
           >
             {[today.getFullYear() - 1, today.getFullYear(), today.getFullYear() + 1, today.getFullYear() + 2].map(y => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
 
-          <button className="btn btn-secondary" style={{padding: '4px 8px', background: 'transparent', border: 'none'}} onClick={()=>setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1))}>
+          <button className="btn btn-secondary" style={{padding: '4px 6px', background: 'transparent', border: 'none'}} onClick={()=>setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1))}>
             <i className="fa-solid fa-chevron-right"></i>
           </button>
         </div>
@@ -2206,23 +2206,23 @@ function GeneralCalendarView({ employees, toast, setSelectedEmp, sendNotificatio
 
   return (
     <div>
-      <div style={{display:'flex', justifyContent:'space-between', marginBottom: 20, alignItems:'center'}}>
-        <h1>Calendario General</h1>
-        <div style={{display:'flex', gap: 15, alignItems:'center'}}>
-          <button className="btn btn-primary" onClick={() => { setSelectedEvent(null); setShowEventModal(true); }}>
+      <div style={{display:'flex', justifyContent:'space-between', marginBottom: 20, alignItems:'center', flexWrap: 'wrap', gap: 15}}>
+        <h1 style={{margin: 0, fontSize: 'min(24px, 5vw)'}}>Calendario General</h1>
+        <div style={{display:'flex', gap: 10, alignItems:'center', flexWrap: 'wrap'}}>
+          <button className="btn btn-primary" onClick={() => { setSelectedEvent(null); setShowEventModal(true); }} style={{whiteSpace: 'nowrap'}}>
             <i className="fa-solid fa-calendar-plus"></i> Nuevo Evento
           </button>
-          <div style={{display:'flex', gap: 10, alignItems:'center', background: 'var(--bg3)', padding: '5px 15px', borderRadius: '12px', border: '1px solid var(--border)'}}>
-            <button className="btn btn-secondary" style={{padding: '5px 10px', background: 'transparent', border: 'none'}} onClick={()=>setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1))}>
+          <div style={{display:'flex', gap: 5, alignItems:'center', background: 'var(--bg3)', padding: '5px 10px', borderRadius: '12px', border: '1px solid var(--border)'}}>
+            <button className="btn btn-secondary" style={{padding: '5px 8px', background: 'transparent', border: 'none'}} onClick={()=>setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1))}>
               <i className="fa-solid fa-chevron-left"></i>
             </button>
             
             <select 
               value={viewDate.getMonth()} 
               onChange={(e) => setViewDate(new Date(viewDate.getFullYear(), parseInt(e.target.value), 1))}
-              style={{background: 'transparent', border: 'none', fontWeight: 700, fontSize: 16, width: 'auto', padding: '5px', cursor: 'pointer', textTransform: 'uppercase'}}
+              style={{background: 'transparent', border: 'none', fontWeight: 700, fontSize: 'max(13px, 1.2vw)', width: 'auto', padding: '2px', cursor: 'pointer', textTransform: 'uppercase'}}
             >
-              {['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((m, i) => (
+              {['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'].map((m, i) => (
                 <option key={i} value={i}>{m}</option>
               ))}
             </select>
@@ -2230,14 +2230,14 @@ function GeneralCalendarView({ employees, toast, setSelectedEmp, sendNotificatio
             <select 
               value={viewDate.getFullYear()} 
               onChange={(e) => setViewDate(new Date(parseInt(e.target.value), viewDate.getMonth(), 1))}
-              style={{background: 'transparent', border: 'none', fontWeight: 700, fontSize: 16, width: 'auto', padding: '5px', cursor: 'pointer'}}
+              style={{background: 'transparent', border: 'none', fontWeight: 700, fontSize: 'max(13px, 1.2vw)', width: 'auto', padding: '2px', cursor: 'pointer'}}
             >
               {[today.getFullYear() - 1, today.getFullYear(), today.getFullYear() + 1, today.getFullYear() + 2].map(y => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
 
-            <button className="btn btn-secondary" style={{padding: '5px 10px', background: 'transparent', border: 'none'}} onClick={()=>setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1))}>
+            <button className="btn btn-secondary" style={{padding: '5px 8px', background: 'transparent', border: 'none'}} onClick={()=>setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1))}>
               <i className="fa-solid fa-chevron-right"></i>
             </button>
           </div>
