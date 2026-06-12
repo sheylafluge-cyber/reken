@@ -2724,8 +2724,7 @@ function MainApp() {
           .from('events')
           .select('*')
           .gte('fecha', todayStr)
-          .order('fecha', { ascending: true })
-          .limit(10);
+          .order('fecha', { ascending: true });
         
         if (error) {
           console.error('Error Admin loadEvents:', error);
