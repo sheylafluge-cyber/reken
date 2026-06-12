@@ -2135,8 +2135,12 @@ function GeneralCalendarView({ employees, toast, setSelectedEmp, sendNotificatio
 
   const load = useCallback(async () => {
     setLoading(true);
-    const start = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).toISOString().split('T')[0];
-    const end = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).toISOString().split('T')[0];
+    const y = viewDate.getFullYear();
+    const m = viewDate.getMonth();
+    const lastDay = new Date(y, m + 1, 0).getDate();
+    
+    const start = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+    const end = `${y}-${String(m + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     
     try {
       const { data: unavail } = await supabaseClient.from('unavailable_days').select('user_id, fecha').gte('fecha', start).lte('fecha', end);
