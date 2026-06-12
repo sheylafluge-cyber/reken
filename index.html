@@ -2745,43 +2745,17 @@ function MainApp() {
     };
   }, []);
 
-  // Función para crear empleado (Registrando en Supabase Auth sin perder la sesión del Admin)
+  // Función para crear empleado (Directo a la tabla profiles para evitar límites de email auth)
   const addEmployee = async (empData) => {
     setLoading(true);
-    const { url, key } = getSBConfig();
-    
     try {
-      // 1. Crear un cliente temporal sin persistencia de sesión
-      const tempSupabase = window.supabase.createClient(url, key, {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false
-        }
-      });
-
-      // 2. Crear al usuario en Supabase Auth
-      const { data: signUpData, error: signUpError } = await tempSupabase.auth.signUp({
-        email: `${empData.username.toLowerCase()}.reken@gmail.com`,
-        password: empData.password,
-        options: {
-          data: {
-            nombre: empData.nombre,
-            rol: empData.role || 'employee'
-          }
-        }
-      });
-
-      if (signUpError) {
-        throw signUpError;
-      }
-
-      // 3. Crear el perfil correspondiente en profiles enlazando el ID
+      // Generamos un ID único para el nuevo perfil
       const tempId = crypto.randomUUID();
+      
       const { error: profError } = await supabaseClient.from('profiles').insert({
         id: tempId,
-        auth_user_id: signUpData.user.id,
-        username: empData.username.toLowerCase(),
+        auth_user_id: null, // No requiere Auth User ya que usamos bypass de login
+        username: empData.username.toLowerCase().trim(),
         password_manual: empData.password,
         nombre: empData.nombre,
         apellidos: empData.apellidos,
@@ -2791,11 +2765,9 @@ function MainApp() {
         es_rigger: !!empData.es_rigger
       });
 
-      if (profError) {
-        throw profError;
-      }
+      if (profError) throw profError;
 
-      toast('Empleado añadido con éxito y registrado de forma segura', 'success');
+      toast('Empleado añadido con éxito', 'success');
       loadEmployees();
       setShowAddModal(false);
     } catch (err) {
@@ -2820,11 +2792,16 @@ function MainApp() {
   if (!profile) return <div className="auth-wrap">Cargando...</div>;
   
   const isAdmin = profile?.role === 'admin';
-  
+
+  const operativeEmployees = employees.filter(e => {
+    const r = (e.role || '').trim().toLowerCase();
+    return r !== 'admin';
+  });
+
   // Alertas para Admin
   const alerts = [];
   if (isAdmin) {
-    employees.filter(e => e.role !== 'admin').forEach(e => {
+    operativeEmployees.forEach(e => {
       ['prl_art19_fecha', 'prl_60h_fecha', 'carretilla_fecha', 'reconocimiento_fecha'].forEach(k => {
         const s = getDocStatus(e[k]);
         if (s.status === 'expired') alerts.push({ e, label: k.replace('_fecha','').toUpperCase().replace('PRL_','PRL '), type: 'expired', date: e[k] });
@@ -2860,8 +2837,6 @@ function MainApp() {
       return new Date(a.date) - new Date(b.date);
     });
   }
-
-  const operativeEmployees = employees.filter(e => e.role !== 'admin');
 
   return (
     <div className="app-layout">
@@ -2982,7 +2957,7 @@ function MainApp() {
           <div>
             <div className="page-header"><h1>Dashboard de Alertas</h1></div>
             <div className="grid-3">
-              <div className="stat-card"><div className="stat-label">OPERARIOS</div><div className="stat-value">{employees.length}</div></div>
+              <div className="stat-card"><div className="stat-label">OPERARIOS</div><div className="stat-value">{operativeEmployees.length}</div></div>
               <div className="stat-card"><div className="stat-label">ALERTAS ACTIVAS</div><div className="stat-value" style={{color: alerts.length ? 'var(--danger)' : 'var(--success)'}}>{alerts.length}</div></div>
             </div>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px'}}>
@@ -3034,10 +3009,10 @@ function MainApp() {
         )}
 
         {showEventModal && (
-          <EventModal 
-            event={selectedEvent} 
-            employees={employees} 
-            onSave={() => { setShowEventModal(false); loadEvents(); }} 
+          <EventModal
+            event={selectedEvent}
+            employees={operativeEmployees}
+            onSave={() => { setShowEventModal(false); loadEvents(); }}
             onCancel={() => setShowEventModal(false)} 
             toast={toast}
             sendNotification={sendNotification}
@@ -3067,14 +3042,14 @@ function MainApp() {
                   </tr>
                 </thead>
                 <tbody>
-                  {employees.length === 0 ? (
+                  {operativeEmployees.length === 0 ? (
                     <tr>
                       <td colSpan="3" style={{padding: 30, textAlign:'center', color: 'var(--text3)'}}>
                         <i className="fa-solid fa-users-slash" style={{fontSize: 24, display:'block', marginBottom: 10, opacity: 0.5}}></i>
                         No hay empleados registrados todavía.
                       </td>
                     </tr>
-                  ) : employees.filter(e => e.role !== 'admin').map(e => (
+                  ) : operativeEmployees.map(e => (
                     <tr key={e.id} style={{borderBottom: '1px solid var(--border)'}}>
                       <td style={{padding: 15}}>
                         <div style={{fontWeight: 500}}>{e.nombre} {e.apellidos || ''}</div>
@@ -3133,7 +3108,7 @@ function MainApp() {
                   </tr>
                 </thead>
                 <tbody>
-                  {employees.filter(e => e.role === 'admin').map(e => (
+                  {employees.filter(e => (e.role || '').trim().toLowerCase() === 'admin').map(e => (
                     <tr key={e.id} style={{borderBottom: '1px solid var(--border)'}}>
                       <td style={{padding: 15}}>{e.nombre} {e.apellidos || ''}</td>
                       <td style={{padding: 15}}>{e.username}</td>
