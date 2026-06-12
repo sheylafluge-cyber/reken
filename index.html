@@ -1112,18 +1112,68 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
       if (profError) throw profError;
 
       // 2. Sincronizar Títulos
-      // Borrar antiguos y meter los actuales (simplificado para asegurar integridad)
-      await supabaseClient.from('employee_titles').delete().eq('profile_id', profile.id);
-      if (titlesList.length > 0) {
-        const titlesToSave = titlesList.map(({id, created_at, isNew, ...rest}) => rest);
-        await supabaseClient.from('employee_titles').insert(titlesToSave);
+      // Primero identificamos qué títulos borrar (los que ya no están en titlesList)
+      const currentRealIds = titlesList.filter(t => !t.id.toString().startsWith('temp_')).map(t => t.id);
+      await supabaseClient.from('employee_titles')
+        .delete()
+        .eq('profile_id', profile.id)
+        .not('id', 'in', `(${currentRealIds.length > 0 ? currentRealIds.join(',') : 0})`);
+
+      // Procesamos la lista para actualizar existentes o insertar nuevos
+      for (const title of titlesList) {
+        const { id, created_at, isNew, ...rest } = title;
+        if (id.toString().startsWith('temp_')) {
+          // Título nuevo: insertar y capturar ID real
+          const { data: inserted, error: insErr } = await supabaseClient
+            .from('employee_titles')
+            .insert({ ...rest, profile_id: profile.id })
+            .select()
+            .single();
+          
+          if (!insErr && inserted) {
+            // Re-vincular documentos del ID temporal al real
+            await supabaseClient.from('documentos')
+              .update({ categoria: `title_${inserted.id}` })
+              .eq('profile_id', profile.id)
+              .eq('categoria', `title_${id}`);
+          }
+        } else {
+          // Título existente: actualizar para preservar ID
+          await supabaseClient.from('employee_titles')
+            .update(rest)
+            .eq('id', id);
+        }
       }
 
       // 3. Sincronizar EPIs
-      await supabaseClient.from('employee_epis').delete().eq('profile_id', profile.id);
-      if (episList.length > 0) {
-        const episToSave = episList.map(({id, created_at, isNew, ...rest}) => rest);
-        await supabaseClient.from('employee_epis').insert(episToSave);
+      const currentEpiRealIds = episList.filter(e => !e.id.toString().startsWith('temp_')).map(e => e.id);
+      await supabaseClient.from('employee_epis')
+        .delete()
+        .eq('profile_id', profile.id)
+        .not('id', 'in', `(${currentEpiRealIds.length > 0 ? currentEpiRealIds.join(',') : 0})`);
+
+      for (const epi of episList) {
+        const { id, created_at, isNew, ...rest } = epi;
+        if (id.toString().startsWith('temp_')) {
+          const { data: inserted, error: insErr } = await supabaseClient
+            .from('employee_epis')
+            .insert({ ...rest, profile_id: profile.id })
+            .select()
+            .single();
+
+          if (!insErr && inserted) {
+            // Re-vincular documentos si el EPI tuviera archivos asociados en el futuro
+            // Actualmente los EPIs usan foto_url (campo directo), pero esto asegura integridad si se añaden anexos
+            await supabaseClient.from('documentos')
+              .update({ categoria: `epi_${inserted.id}` })
+              .eq('profile_id', profile.id)
+              .eq('categoria', `epi_${id}`);
+          }
+        } else {
+          await supabaseClient.from('employee_epis')
+            .update(rest)
+            .eq('id', id);
+        }
       }
 
       // Notificaciones si no es admin
