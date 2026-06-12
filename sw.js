@@ -2,7 +2,6 @@ const CACHE_NAME = 'reken-events-v1';
 const ASSETS = [
   './',
   './index.html',
-  './manifest.json',
   './WhatsApp Image 2026-06-10 at 11.42.25.jpeg'
 ];
 

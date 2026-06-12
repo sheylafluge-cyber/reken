@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#ff3399" />
-  <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/jpeg" href="WhatsApp Image 2026-06-10 at 11.42.25.jpeg" />
   <link rel="apple-touch-icon" href="WhatsApp Image 2026-06-10 at 11.42.25.jpeg" />
   <title>Reken Events - Gestión de Personal v1.2</title>
@@ -1114,10 +1113,12 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
       // 2. Sincronizar Títulos
       // Primero identificamos qué títulos borrar (los que ya no están en titlesList)
       const currentRealIds = titlesList.filter(t => !t.id.toString().startsWith('temp_')).map(t => t.id);
-      await supabaseClient.from('employee_titles')
-        .delete()
-        .eq('profile_id', profile.id)
-        .not('id', 'in', `(${currentRealIds.length > 0 ? currentRealIds.join(',') : 0})`);
+      
+      let titlesDelQuery = supabaseClient.from('employee_titles').delete().eq('profile_id', profile.id);
+      if (currentRealIds.length > 0) {
+        titlesDelQuery = titlesDelQuery.not('id', 'in', `(${currentRealIds.join(',')})`);
+      }
+      await titlesDelQuery;
 
       // Procesamos la lista para actualizar existentes o insertar nuevos
       for (const title of titlesList) {
@@ -1147,10 +1148,12 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
 
       // 3. Sincronizar EPIs
       const currentEpiRealIds = episList.filter(e => !e.id.toString().startsWith('temp_')).map(e => e.id);
-      await supabaseClient.from('employee_epis')
-        .delete()
-        .eq('profile_id', profile.id)
-        .not('id', 'in', `(${currentEpiRealIds.length > 0 ? currentEpiRealIds.join(',') : 0})`);
+      
+      let episDelQuery = supabaseClient.from('employee_epis').delete().eq('profile_id', profile.id);
+      if (currentEpiRealIds.length > 0) {
+        episDelQuery = episDelQuery.not('id', 'in', `(${currentEpiRealIds.join(',')})`);
+      }
+      await episDelQuery;
 
       for (const epi of episList) {
         const { id, created_at, isNew, ...rest } = epi;
