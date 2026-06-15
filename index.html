@@ -2125,7 +2125,7 @@ function EventModal({ event, employees, clockings = [], onSave, onCancel, toast,
                     <label>Fecha y Hora</label>
                     <input 
                       type="datetime-local" 
-                      value={editingClocking.fecha_hora.slice(0, 16)} 
+                      value={new Date(new Date(editingClocking.fecha_hora).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)} 
                       onChange={e=>setEditingClocking({...editingClocking, fecha_hora: e.target.value})} 
                     />
                   </div>
