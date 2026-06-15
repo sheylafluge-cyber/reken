@@ -1644,7 +1644,7 @@ function ClockingRow({ clocking, employees, getAddress, onEdit, onDelete }) {
   );
 }
 
-function EventModal({ event, employees, clockings = [], onSave, onCancel, toast, sendNotification }) {
+function EventModal({ event, employees, clockings = [], onSave, onCancel, toast, sendNotification, refreshClockings }) {
   const [activeTab, setActiveTab] = useState('general'); // 'general', 'personal', 'docs', 'fichajes'
   const [editingClocking, setEditingClocking] = useState(null); // {id, tipo, fecha_hora}
   const [addressCache, setAddressCache] = useState({}); // { 'lat,lon': 'Calle Ejemplo...' }
@@ -1683,7 +1683,7 @@ function EventModal({ event, employees, clockings = [], onSave, onCancel, toast,
       if (error) throw error;
       toast('Fichaje actualizado', 'success');
       setEditingClocking(null);
-      onSave();
+      if (refreshClockings) await refreshClockings();
     } catch (err) {
       console.error(err);
       toast('Error al actualizar fichaje', 'danger');
@@ -1855,12 +1855,7 @@ function EventModal({ event, employees, clockings = [], onSave, onCancel, toast,
       const { error } = await supabaseClient.from('fichajes').delete().eq('id', id);
       if (error) throw error;
       toast('Fichaje eliminado', 'success');
-      // Forzar recarga de fichajes en el estado global si MainApp provee una función, 
-      // o dejar que el usuario recargue al cerrar el modal si onSave se llama.
-      // Por simplicidad, asumimos que MainApp recargará los fichajes mediante onSave o un polling.
-      // Pero para feedback inmediato sin cerrar modal, lo ideal sería que MainApp pasara la función loadClockings.
-      // Dado que MainApp es el padre, usaremos onSave() para notificar el cambio.
-      onSave(); 
+      if (refreshClockings) await refreshClockings();
     } catch (err) {
       console.error(err);
       toast('Error al eliminar fichaje', 'danger');
@@ -2496,6 +2491,7 @@ function GeneralCalendarView({ employees, clockings, toast, setSelectedEmp, send
           event={selectedEvent} 
           employees={employees} 
           clockings={clockings}
+          refreshClockings={() => loadClockings()}
           onSave={() => { setShowEventModal(false); load(); }} 
           onCancel={() => setShowEventModal(false)} 
           toast={toast}
@@ -3385,6 +3381,7 @@ function MainApp() {
             event={selectedEvent}
             employees={operativeEmployees}
             clockings={clockings}
+            refreshClockings={() => loadClockings()}
             onSave={() => { setShowEventModal(false); loadEvents(); }}
             onCancel={() => setShowEventModal(false)} 
             toast={toast}
