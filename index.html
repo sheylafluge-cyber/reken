@@ -2293,20 +2293,15 @@ function GeneralCalendarView({ employees, toast, setSelectedEmp, sendNotificatio
                 })}
                 
                 <div style={{marginTop: 4, paddingTop: 4, borderTop: (dayEvents.length || dayExpirations.length) ? '1px solid var(--border)' : 'none', display:'flex', flexWrap:'wrap', gap: 2}}>
-                  {employees.map(e => {
-                    const isUnavail = unavailData.some(u => u.user_id === e.id && u.fecha === dateStr);
-                    const catChars = [];
-                    if (e.es_carga) catChars.push('C');
-                    if (e.es_protocolo) catChars.push('P');
-                    if (e.es_rigger) catChars.push('R');
-                    const catStr = catChars.length ? `[${catChars.join('')}]` : '';
-
-                    return (
-                      <div key={e.id} className={`emp-tag ${isUnavail?'unavail':'avail'}`} style={{fontSize: 8, padding: '1px 3px', whiteSpace:'nowrap'}}>
-                        {e.nombre} {catStr}
+                  {(() => {
+                    const dayEvIds = dayEvents.map(ev => ev.id);
+                    const assignedIds = new Set(assignments.filter(a => dayEvIds.includes(a.event_id)).map(a => a.profile_id));
+                    return employees.filter(e => assignedIds.has(e.id)).map(e => (
+                      <div key={e.id} className="emp-tag avail" style={{fontSize: 8, padding: '1px 3px', whiteSpace:'nowrap', background: 'var(--accent-bg)', color: 'var(--accent2)', fontWeight: 600}}>
+                        {e.nombre}
                       </div>
-                    );
-                  })}
+                    ));
+                  })()}
                 </div>
               </div>
             </div>
