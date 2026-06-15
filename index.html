@@ -1584,7 +1584,51 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
 
 function EventModal({ event, employees, clockings = [], onSave, onCancel, toast, sendNotification }) {
   const [activeTab, setActiveTab] = useState('general'); // 'general', 'personal', 'docs', 'fichajes'
+  const [editingClocking, setEditingClocking] = useState(null); // {id, tipo, fecha_hora}
+  const [addressCache, setAddressCache] = useState({}); // { 'lat,lon': 'Calle Ejemplo...' }
   const [form, setForm] = useState(event?.id ? { ...event } : { nombre: '', fecha: event?.fecha || '', ubicacion: '', notas: '', ...event });
+
+  const getAddress = async (lat, lon) => {
+    const key = `${lat},${lon}`;
+    if (addressCache[key]) return addressCache[key];
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`, {
+        headers: { 'User-Agent': 'RekenEventsApp' }
+      });
+      const data = await res.json();
+      const addr = data.display_name || 'Dirección no encontrada';
+      setAddressCache(prev => ({ ...prev, [key]: addr }));
+      return addr;
+    } catch (e) {
+      return 'Error al obtener dirección';
+    }
+  };
+
+  const updateClocking = async () => {
+    if (!editingClocking) return;
+    setLoading(true);
+    try {
+      // Convertir fecha local (datetime-local) a formato ISO para Supabase
+      const isoDate = new Date(editingClocking.fecha_hora).toISOString();
+      const { error } = await supabaseClient
+        .from('fichajes')
+        .update({ 
+          tipo: editingClocking.tipo, 
+          fecha_hora: isoDate 
+        })
+        .eq('id', editingClocking.id);
+      
+      if (error) throw error;
+      toast('Fichaje actualizado', 'success');
+      setEditingClocking(null);
+      onSave();
+    } catch (err) {
+      console.error(err);
+      toast('Error al actualizar fichaje', 'danger');
+    } finally {
+      setLoading(false);
+    }
+  };
   const [selectedEmps, setSelectedEmps] = useState([]); // [{profile_id, horario, categoria_asignada}]
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -2009,53 +2053,97 @@ function EventModal({ event, employees, clockings = [], onSave, onCancel, toast,
           {activeTab === 'fichajes' && (
             <div style={{display:'flex', flexDirection:'column', gap: 10}}>
               <h4 style={{fontSize: 13, color:'var(--text2)', marginBottom: 5}}>SEGUIMIENTO DE JORNADA</h4>
-              <div style={{maxHeight: 400, overflowY:'auto', display:'flex', flexDirection:'column', gap: 8}}>
-                {clockings.filter(c => c.event_id === form.id).length === 0 ? (
-                  <div style={{textAlign:'center', padding:20, color:'var(--text3)', fontSize:12, background:'var(--bg3)', borderRadius:8}}>No hay registros de fichajes aún</div>
-                ) : clockings.filter(c => c.event_id === form.id).map(c => {
-                  const emp = employees.find(e => e.id === c.profile_id);
-                  return (
-                    <div key={c.id} style={{padding: 12, background:'var(--bg3)', borderRadius:8, border:'1px solid var(--border)', fontSize:12}}>
-                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
-                        <div>
-                          <div style={{fontWeight:600}}>{emp?.nombre} {emp?.apellidos || ''}</div>
-                          <div style={{marginTop:4}}>
-                            <span style={{
-                              padding: '2px 6px', 
-                              borderRadius: 4, 
-                              fontSize: 10, 
-                              background: c.tipo === 'entrada' ? 'var(--success-bg)' : 'var(--danger-bg)',
-                              color: c.tipo === 'entrada' ? 'var(--success)' : 'var(--danger)',
-                              fontWeight: 700,
-                              textTransform: 'uppercase'
-                            }}>{c.tipo}</span>
-                            <span style={{marginLeft: 8, color:'var(--text2)'}}>{new Date(c.fecha_hora).toLocaleString()}</span>
+              
+              {editingClocking ? (
+                <div style={{background: 'var(--bg3)', padding: 15, borderRadius: 8, border: '1px solid var(--accent)', marginBottom: 15}}>
+                  <h5 style={{marginBottom: 10, fontSize: 12}}>EDITAR FICHAJE</h5>
+                  <div className="form-group">
+                    <label>Tipo</label>
+                    <select value={editingClocking.tipo} onChange={e=>setEditingClocking({...editingClocking, tipo: e.target.value})}>
+                      <option value="entrada">Entrada</option>
+                      <option value="salida">Salida</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Fecha y Hora</label>
+                    <input 
+                      type="datetime-local" 
+                      value={editingClocking.fecha_hora.slice(0, 16)} 
+                      onChange={e=>setEditingClocking({...editingClocking, fecha_hora: e.target.value})} 
+                    />
+                  </div>
+                  <div style={{display: 'flex', gap: 10}}>
+                    <button className="btn btn-primary" onClick={updateClocking} disabled={loading} style={{flex: 1}}>Guardar</button>
+                    <button className="btn btn-secondary" onClick={()=>setEditingClocking(null)} style={{flex: 1}}>Cancelar</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{maxHeight: 400, overflowY:'auto', display:'flex', flexDirection:'column', gap: 8}}>
+                  {clockings.filter(c => c.event_id === form.id).length === 0 ? (
+                    <div style={{textAlign:'center', padding:20, color:'var(--text3)', fontSize:12, background:'var(--bg3)', borderRadius:8}}>No hay registros de fichajes aún</div>
+                  ) : clockings.filter(c => c.event_id === form.id).map(c => {
+                    const emp = employees.find(e => e.id === c.profile_id);
+                    const [address, setAddress] = React.useState('Cargando dirección...');
+                    
+                    React.useEffect(() => {
+                      getAddress(c.latitud, c.longitud).then(setAddress);
+                    }, [c.latitud, c.longitud]);
+
+                    return (
+                      <div key={c.id} style={{padding: 12, background:'var(--bg3)', borderRadius:8, border:'1px solid var(--border)', fontSize:12}}>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+                          <div style={{flex: 1, marginRight: 10}}>
+                            <div style={{fontWeight:600}}>{emp?.nombre} {emp?.apellidos || ''}</div>
+                            <div style={{marginTop:4, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 5}}>
+                              <span style={{
+                                padding: '2px 6px', 
+                                borderRadius: 4, 
+                                fontSize: 10, 
+                                background: c.tipo === 'entrada' ? 'var(--success-bg)' : 'var(--danger-bg)',
+                                color: c.tipo === 'entrada' ? 'var(--success)' : 'var(--danger)',
+                                fontWeight: 700,
+                                textTransform: 'uppercase'
+                              }}>{c.tipo}</span>
+                              <span style={{color:'var(--text2)', fontSize: 11}}>{new Date(c.fecha_hora).toLocaleString()}</span>
+                            </div>
+                            <div style={{marginTop: 6, fontSize: 10, color: 'var(--text3)', display: 'flex', alignItems: 'flex-start', gap: 4}}>
+                              <i className="fa-solid fa-location-dot" style={{marginTop: 2}}></i>
+                              <span>{address}</span>
+                            </div>
+                          </div>
+                          <div style={{display:'flex', gap: 5, flexShrink: 0}}>
+                            <button 
+                              className="btn btn-secondary" 
+                              onClick={() => setEditingClocking({ id: c.id, tipo: c.tipo, fecha_hora: new Date(c.fecha_hora).toISOString() })} 
+                              style={{padding: '5px 8px', fontSize: 10}}
+                              title="Editar fichaje"
+                            >
+                              <i className="fa-solid fa-pen"></i>
+                            </button>
+                            <a 
+                              href={`https://www.google.com/maps?q=${c.latitud},${c.longitud}`} 
+                              target="_blank" 
+                              className="btn btn-secondary" 
+                              style={{padding: '5px 8px', fontSize: 10}}
+                              title="Ver en mapa"
+                            >
+                              <i className="fa-solid fa-map"></i>
+                            </a>
+                            <button 
+                              className="btn btn-danger" 
+                              onClick={() => deleteClocking(c.id)} 
+                              style={{padding: '5px 8px', fontSize: 10, background:'transparent', border:'none', color:'var(--danger)'}}
+                              title="Borrar fichaje"
+                            >
+                              <i className="fa-solid fa-trash"></i>
+                            </button>
                           </div>
                         </div>
-                        <div style={{display:'flex', gap: 5}}>
-                          <a 
-                            href={`https://www.google.com/maps?q=${c.latitud},${c.longitud}`} 
-                            target="_blank" 
-                            className="btn btn-secondary" 
-                            style={{padding: '5px 8px', fontSize: 10}}
-                            title="Ver en mapa"
-                          >
-                            <i className="fa-solid fa-location-dot"></i> Mapa
-                          </a>
-                          <button 
-                            className="btn btn-danger" 
-                            onClick={() => deleteClocking(c.id)} 
-                            style={{padding: '5px 8px', fontSize: 10, background:'transparent', border:'none', color:'var(--danger)'}}
-                            title="Borrar fichaje"
-                          >
-                            <i className="fa-solid fa-trash"></i>
-                          </button>
-                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
