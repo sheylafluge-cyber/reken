@@ -236,21 +236,14 @@ const getSBConfig = () => {
 
 let supabaseClient = null;
 function initSupabase() {
+  if (supabaseClient) return supabaseClient;
   const { url, key } = getSBConfig();
-  console.log('Inicializando Supabase...');
-  console.log('URL:', url);
-  console.log('window.supabase:', window.supabase);
   if (url && key) {
     try {
-      // Usamos el objeto global 'supabase' que proporciona la librería del CDN
       if (window.supabase && window.supabase.createClient) {
         supabaseClient = window.supabase.createClient(url, key);
-        console.log('Cliente Supabase creado con éxito');
       } else if (typeof supabase !== 'undefined' && supabase.createClient) {
         supabaseClient = supabase.createClient(url, key);
-        console.log('Cliente Supabase creado con éxito (vía variable global)');
-      } else {
-        console.error("La librería de Supabase no se ha cargado correctamente.");
       }
     } catch (e) {
       console.error("Error inicializando Supabase:", e);
@@ -334,7 +327,7 @@ function AuthPage({ toast, onBypass }) {
       // LOGIN PERSONALIZADO: Buscamos directamente en la tabla profiles
       const { data: profileData, error: profileError } = await supabaseClient
         .from('profiles')
-        .select('*')
+        .select('id, username, password_manual, nombre, apellidos, role, es_carga, es_protocolo, es_rigger')
         .eq('username', cleanUser)
         .eq('password_manual', cleanPass)
         .single();
@@ -2935,7 +2928,7 @@ function MainApp() {
     if (!currentProfile) {
       const { data } = await supabaseClient
         .from('profiles')
-        .select('*')
+        .select('id, username, password_manual, nombre, apellidos, role, dni, tarjeta_sanitaria, ccc, telefono, prl_art19_fecha, prl_60h_fecha, carretilla_fecha, reconocimiento_fecha, created_at, updated_at, es_carga, es_protocolo, es_rigger, auth_user_id, email, direccion')
         .or(`auth_user_id.eq.${uid},id.eq.${uid}`)
         .single();
       currentProfile = data;
@@ -2971,7 +2964,7 @@ function MainApp() {
   };
 
   const loadEmployees = async () => {
-    const { data: profs, error } = await supabaseClient.from('profiles').select('*').order('nombre');
+    const { data: profs, error } = await supabaseClient.from('profiles').select('id, username, password_manual, nombre, apellidos, role, dni, tarjeta_sanitaria, ccc, telefono, prl_art19_fecha, prl_60h_fecha, carretilla_fecha, reconocimiento_fecha, created_at, updated_at, es_carga, es_protocolo, es_rigger, auth_user_id, email, direccion').order('nombre');
     if (error) {
       console.error('Error cargando empleados:', error);
       toast('Error al cargar la lista de empleados', 'danger');
@@ -3057,9 +3050,7 @@ function MainApp() {
     const sb = initSupabase();
     if (!sb) return;
     
-    // Restauramos el sistema de sesión original
     sb.auth.getSession().then(({ data: { session } }) => {
-      // Priorizamos sesión real, pero la app ahora funciona con el bypass de AuthPage
       if (session?.user) loadProfile(session.user.id);
     });
 
@@ -3068,18 +3059,23 @@ function MainApp() {
       else setProfile(null);
     });
     
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!profile) return;
+
     // Sincronización automática cada 30 segundos (Eventos, Fichajes y Notificaciones)
     const interval = setInterval(() => {
-      if (profile) {
-        console.log('Refrescando datos automáticamente...');
-        loadEvents(profile);
-        loadClockings(profile);
-        loadNotifications(profile);
-      }
+      console.log('Refrescando datos automáticamente para:', profile.nombre);
+      loadEvents(profile);
+      loadClockings(profile);
+      loadNotifications(profile);
     }, 30000);
 
     return () => {
-      subscription.unsubscribe();
       clearInterval(interval);
     };
   }, [profile]);
