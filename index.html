@@ -1742,6 +1742,27 @@ function EventModal({ event, employees, clockings = [], onSave, onCancel, toast,
     onSave();
   };
 
+  const deleteClocking = async (id) => {
+    if (!confirm('¿Seguro que quieres eliminar este fichaje permanentemente?')) return;
+    setLoading(true);
+    try {
+      const { error } = await supabaseClient.from('fichajes').delete().eq('id', id);
+      if (error) throw error;
+      toast('Fichaje eliminado', 'success');
+      // Forzar recarga de fichajes en el estado global si MainApp provee una función, 
+      // o dejar que el usuario recargue al cerrar el modal si onSave se llama.
+      // Por simplicidad, asumimos que MainApp recargará los fichajes mediante onSave o un polling.
+      // Pero para feedback inmediato sin cerrar modal, lo ideal sería que MainApp pasara la función loadClockings.
+      // Dado que MainApp es el padre, usaremos onSave() para notificar el cambio.
+      onSave(); 
+    } catch (err) {
+      console.error(err);
+      toast('Error al eliminar fichaje', 'danger');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const toggleEmp = (pid) => {
     if (selectedEmps.some(asg => asg.profile_id === pid)) {
       setSelectedEmps(p => p.filter(asg => asg.profile_id !== pid));
@@ -2011,15 +2032,25 @@ function EventModal({ event, employees, clockings = [], onSave, onCancel, toast,
                             <span style={{marginLeft: 8, color:'var(--text2)'}}>{new Date(c.fecha_hora).toLocaleString()}</span>
                           </div>
                         </div>
-                        <a 
-                          href={`https://www.google.com/maps?q=${c.latitud},${c.longitud}`} 
-                          target="_blank" 
-                          className="btn btn-secondary" 
-                          style={{padding: '5px 8px', fontSize: 10}}
-                          title="Ver en mapa"
-                        >
-                          <i className="fa-solid fa-location-dot"></i> Mapa
-                        </a>
+                        <div style={{display:'flex', gap: 5}}>
+                          <a 
+                            href={`https://www.google.com/maps?q=${c.latitud},${c.longitud}`} 
+                            target="_blank" 
+                            className="btn btn-secondary" 
+                            style={{padding: '5px 8px', fontSize: 10}}
+                            title="Ver en mapa"
+                          >
+                            <i className="fa-solid fa-location-dot"></i> Mapa
+                          </a>
+                          <button 
+                            className="btn btn-danger" 
+                            onClick={() => deleteClocking(c.id)} 
+                            style={{padding: '5px 8px', fontSize: 10, background:'transparent', border:'none', color:'var(--danger)'}}
+                            title="Borrar fichaje"
+                          >
+                            <i className="fa-solid fa-trash"></i>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
