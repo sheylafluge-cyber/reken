@@ -1582,13 +1582,75 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
   );
 }
 
+function ClockingRow({ clocking, employees, getAddress, onEdit, onDelete }) {
+  const [address, setAddress] = useState('Cargando dirección...');
+  const emp = employees.find(e => e.id === clocking.profile_id);
+
+  useEffect(() => {
+    getAddress(clocking.latitud, clocking.longitud).then(setAddress);
+  }, [clocking.latitud, clocking.longitud, getAddress]);
+
+  return (
+    <div style={{padding: 12, background:'var(--bg3)', borderRadius:8, border:'1px solid var(--border)', fontSize:12}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+        <div style={{flex: 1, marginRight: 10}}>
+          <div style={{fontWeight:600}}>{emp?.nombre} {emp?.apellidos || ''}</div>
+          <div style={{marginTop:4, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 5}}>
+            <span style={{
+              padding: '2px 6px', 
+              borderRadius: 4, 
+              fontSize: 10, 
+              background: clocking.tipo === 'entrada' ? 'var(--success-bg)' : 'var(--danger-bg)',
+              color: clocking.tipo === 'entrada' ? 'var(--success)' : 'var(--danger)',
+              fontWeight: 700,
+              textTransform: 'uppercase'
+            }}>{clocking.tipo}</span>
+            <span style={{color:'var(--text2)', fontSize: 11}}>{new Date(clocking.fecha_hora).toLocaleString()}</span>
+          </div>
+          <div style={{marginTop: 6, fontSize: 10, color: 'var(--text3)', display: 'flex', alignItems: 'flex-start', gap: 4}}>
+            <i className="fa-solid fa-location-dot" style={{marginTop: 2}}></i>
+            <span>{address}</span>
+          </div>
+        </div>
+        <div style={{display:'flex', gap: 5, flexShrink: 0}}>
+          <button 
+            className="btn btn-secondary" 
+            onClick={() => onEdit({ id: clocking.id, tipo: clocking.tipo, fecha_hora: new Date(clocking.fecha_hora).toISOString() })} 
+            style={{padding: '5px 8px', fontSize: 10}}
+            title="Editar fichaje"
+          >
+            <i className="fa-solid fa-pen"></i>
+          </button>
+          <a 
+            href={`https://www.google.com/maps?q=${clocking.latitud},${clocking.longitud}`} 
+            target="_blank" 
+            className="btn btn-secondary" 
+            style={{padding: '5px 8px', fontSize: 10}}
+            title="Ver en mapa"
+          >
+            <i className="fa-solid fa-map"></i>
+          </a>
+          <button 
+            className="btn btn-danger" 
+            onClick={() => onDelete(clocking.id)} 
+            style={{padding: '5px 8px', fontSize: 10, background:'transparent', border:'none', color:'var(--danger)'}}
+            title="Borrar fichaje"
+          >
+            <i className="fa-solid fa-trash"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EventModal({ event, employees, clockings = [], onSave, onCancel, toast, sendNotification }) {
   const [activeTab, setActiveTab] = useState('general'); // 'general', 'personal', 'docs', 'fichajes'
   const [editingClocking, setEditingClocking] = useState(null); // {id, tipo, fecha_hora}
   const [addressCache, setAddressCache] = useState({}); // { 'lat,lon': 'Calle Ejemplo...' }
   const [form, setForm] = useState(event?.id ? { ...event } : { nombre: '', fecha: event?.fecha || '', ubicacion: '', notas: '', ...event });
 
-  const getAddress = async (lat, lon) => {
+  const getAddress = useCallback(async (lat, lon) => {
     const key = `${lat},${lon}`;
     if (addressCache[key]) return addressCache[key];
     try {
@@ -1602,7 +1664,7 @@ function EventModal({ event, employees, clockings = [], onSave, onCancel, toast,
     } catch (e) {
       return 'Error al obtener dirección';
     }
-  };
+  }, [addressCache]);
 
   const updateClocking = async () => {
     if (!editingClocking) return;
@@ -2081,67 +2143,16 @@ function EventModal({ event, employees, clockings = [], onSave, onCancel, toast,
                 <div style={{maxHeight: 400, overflowY:'auto', display:'flex', flexDirection:'column', gap: 8}}>
                   {clockings.filter(c => c.event_id === form.id).length === 0 ? (
                     <div style={{textAlign:'center', padding:20, color:'var(--text3)', fontSize:12, background:'var(--bg3)', borderRadius:8}}>No hay registros de fichajes aún</div>
-                  ) : clockings.filter(c => c.event_id === form.id).map(c => {
-                    const emp = employees.find(e => e.id === c.profile_id);
-                    const [address, setAddress] = React.useState('Cargando dirección...');
-                    
-                    React.useEffect(() => {
-                      getAddress(c.latitud, c.longitud).then(setAddress);
-                    }, [c.latitud, c.longitud]);
-
-                    return (
-                      <div key={c.id} style={{padding: 12, background:'var(--bg3)', borderRadius:8, border:'1px solid var(--border)', fontSize:12}}>
-                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
-                          <div style={{flex: 1, marginRight: 10}}>
-                            <div style={{fontWeight:600}}>{emp?.nombre} {emp?.apellidos || ''}</div>
-                            <div style={{marginTop:4, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 5}}>
-                              <span style={{
-                                padding: '2px 6px', 
-                                borderRadius: 4, 
-                                fontSize: 10, 
-                                background: c.tipo === 'entrada' ? 'var(--success-bg)' : 'var(--danger-bg)',
-                                color: c.tipo === 'entrada' ? 'var(--success)' : 'var(--danger)',
-                                fontWeight: 700,
-                                textTransform: 'uppercase'
-                              }}>{c.tipo}</span>
-                              <span style={{color:'var(--text2)', fontSize: 11}}>{new Date(c.fecha_hora).toLocaleString()}</span>
-                            </div>
-                            <div style={{marginTop: 6, fontSize: 10, color: 'var(--text3)', display: 'flex', alignItems: 'flex-start', gap: 4}}>
-                              <i className="fa-solid fa-location-dot" style={{marginTop: 2}}></i>
-                              <span>{address}</span>
-                            </div>
-                          </div>
-                          <div style={{display:'flex', gap: 5, flexShrink: 0}}>
-                            <button 
-                              className="btn btn-secondary" 
-                              onClick={() => setEditingClocking({ id: c.id, tipo: c.tipo, fecha_hora: new Date(c.fecha_hora).toISOString() })} 
-                              style={{padding: '5px 8px', fontSize: 10}}
-                              title="Editar fichaje"
-                            >
-                              <i className="fa-solid fa-pen"></i>
-                            </button>
-                            <a 
-                              href={`https://www.google.com/maps?q=${c.latitud},${c.longitud}`} 
-                              target="_blank" 
-                              className="btn btn-secondary" 
-                              style={{padding: '5px 8px', fontSize: 10}}
-                              title="Ver en mapa"
-                            >
-                              <i className="fa-solid fa-map"></i>
-                            </a>
-                            <button 
-                              className="btn btn-danger" 
-                              onClick={() => deleteClocking(c.id)} 
-                              style={{padding: '5px 8px', fontSize: 10, background:'transparent', border:'none', color:'var(--danger)'}}
-                              title="Borrar fichaje"
-                            >
-                              <i className="fa-solid fa-trash"></i>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  ) : clockings.filter(c => c.event_id === form.id).map(c => (
+                    <ClockingRow 
+                      key={c.id} 
+                      clocking={c} 
+                      employees={employees} 
+                      getAddress={getAddress} 
+                      onEdit={setEditingClocking} 
+                      onDelete={deleteClocking} 
+                    />
+                  ))}
                 </div>
               )}
             </div>
