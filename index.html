@@ -3068,16 +3068,21 @@ function MainApp() {
       else setProfile(null);
     });
     
-    // Polling de notificaciones cada 60 segundos
+    // Sincronización automática cada 30 segundos (Eventos, Fichajes y Notificaciones)
     const interval = setInterval(() => {
-      loadNotifications();
-    }, 60000);
+      if (profile) {
+        console.log('Refrescando datos automáticamente...');
+        loadEvents(profile);
+        loadClockings(profile);
+        loadNotifications(profile);
+      }
+    }, 30000);
 
     return () => {
       subscription.unsubscribe();
       clearInterval(interval);
     };
-  }, []);
+  }, [profile]);
 
   // Función para crear empleado (Directo a la tabla profiles para evitar límites de email auth)
   const addEmployee = async (empData) => {
