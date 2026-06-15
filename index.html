@@ -1582,7 +1582,7 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
   );
 }
 
-function EventModal({ event, employees, clockings, onSave, onCancel, toast, sendNotification }) {
+function EventModal({ event, employees, clockings = [], onSave, onCancel, toast, sendNotification }) {
   const [activeTab, setActiveTab] = useState('general'); // 'general', 'personal', 'docs', 'fichajes'
   const [form, setForm] = useState(event?.id ? { ...event } : { nombre: '', fecha: event?.fecha || '', ubicacion: '', notas: '', ...event });
   const [selectedEmps, setSelectedEmps] = useState([]); // [{profile_id, horario, categoria_asignada}]
@@ -2182,7 +2182,7 @@ function DayDetailsModal({ date, employees, unavailData, events, assignments, on
   );
 }
 
-function GeneralCalendarView({ employees, toast, setSelectedEmp, sendNotification }) {
+function GeneralCalendarView({ employees, clockings, toast, setSelectedEmp, sendNotification }) {
   const [unavailData, setUnavailData] = useState([]);
   const [events, setEvents] = useState([]);
   const [assignments, setAssignments] = useState([]);
@@ -3254,6 +3254,7 @@ function MainApp() {
           <EventModal
             event={selectedEvent}
             employees={operativeEmployees}
+            clockings={clockings}
             onSave={() => { setShowEventModal(false); loadEvents(); }}
             onCancel={() => setShowEventModal(false)} 
             toast={toast}
@@ -3329,7 +3330,13 @@ function MainApp() {
         )}
 
         {page === 'gencal' && isAdmin && (
-          <GeneralCalendarView employees={operativeEmployees} toast={toast} setSelectedEmp={setSelectedEmp} sendNotification={sendNotification} />
+          <GeneralCalendarView 
+            employees={operativeEmployees} 
+            clockings={clockings} 
+            toast={toast} 
+            setSelectedEmp={setSelectedEmp} 
+            sendNotification={sendNotification} 
+          />
         )}
 
         {page === 'admins' && isAdmin && (
