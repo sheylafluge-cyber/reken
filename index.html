@@ -1582,7 +1582,8 @@ function EmployeeForm({ profile, isAdmin, onSave, onCancel, sendNotification, cu
   );
 }
 
-function EventModal({ event, employees, onSave, onCancel, toast, sendNotification }) {
+function EventModal({ event, employees, clockings, onSave, onCancel, toast, sendNotification }) {
+  const [activeTab, setActiveTab] = useState('general'); // 'general', 'personal', 'docs', 'fichajes'
   const [form, setForm] = useState(event?.id ? { ...event } : { nombre: '', fecha: event?.fecha || '', ubicacion: '', notas: '', ...event });
   const [selectedEmps, setSelectedEmps] = useState([]); // [{profile_id, horario, categoria_asignada}]
   const [loading, setLoading] = useState(false);
@@ -1860,154 +1861,191 @@ function EventModal({ event, employees, onSave, onCancel, toast, sendNotificatio
           <button className="btn btn-secondary" onClick={onCancel}><i className="fa-solid fa-xmark"></i></button>
         </div>
         <div className="modal-body">
-          <div className="form-group">
-            <label>Nombre del Evento</label>
-            <input value={form.nombre} onChange={e=>setForm({...form, nombre: e.target.value})} placeholder="Ej: Boda Juan y María" />
-          </div>
-          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 15, marginBottom: 15}}>
-            <div className="form-group" style={{marginBottom: 0}}>
-              <label>Fecha</label>
-              <input type="date" value={form.fecha} onChange={e=>setForm({...form, fecha: e.target.value})} />
-            </div>
-            <div className="form-group" style={{marginBottom: 0}}>
-              <label>Ubicación</label>
-              <input value={form.ubicacion} onChange={e=>setForm({...form, ubicacion: e.target.value})} placeholder="Ej: Hotel Hilton" />
-            </div>
-          </div>
-          <div className="form-group">
-            <label>Notas / Anotaciones</label>
-            <textarea value={form.notas||''} onChange={e=>setForm({...form, notas: e.target.value})} placeholder="Detalles adicionales..." rows="3"></textarea>
+          <div className="tabs" style={{marginBottom: 20}}>
+            <button className={`tab ${activeTab === 'general' ? 'active' : ''}`} onClick={() => setActiveTab('general')}>General</button>
+            <button className={`tab ${activeTab === 'personal' ? 'active' : ''}`} onClick={() => setActiveTab('personal')}>Personal</button>
+            <button className={`tab ${activeTab === 'docs' ? 'active' : ''}`} onClick={() => setActiveTab('docs')}>Archivos</button>
+            <button className={`tab ${activeTab === 'fichajes' ? 'active' : ''}`} onClick={() => setActiveTab('fichajes')}>Fichajes</button>
           </div>
 
-          <div className="form-group">
-            <label>Archivos del Evento (Presupuestos, Imágenes, etc.)</label>
-            <div style={{display:'flex', flexDirection:'column', gap: 8, marginBottom: 12, background:'var(--bg3)', padding: 10, borderRadius: 8}}>
-              {eventDocs.map(d => (
-                <div key={d.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--bg2)', padding: '8px 12px', borderRadius: 6, fontSize: 12, border: '1px solid var(--border)'}}>
-                  <div style={{display:'flex', alignItems:'center', gap: 8, overflow:'hidden'}}>
-                    <i className={d.nombre_archivo.toLowerCase().endsWith('.pdf') ? "fa-solid fa-file-pdf" : "fa-solid fa-image"} style={{color: d.nombre_archivo.toLowerCase().endsWith('.pdf') ? '#e74c3c' : '#3498db'}}></i>
-                    <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}} title={d.nombre_archivo}>{d.nombre_archivo}</span>
-                  </div>
-                  <div style={{display:'flex', gap: 6}}>
-                    <a href={d.url} target="_blank" className="btn btn-secondary" style={{padding: '4px 8px', fontSize: 11}}><i className="fa-solid fa-eye"></i></a>
-                    <button onClick={()=>deleteEventDoc(d)} className="btn btn-danger" style={{padding: '4px 8px', fontSize: 11, background:'transparent', border:'none', color:'var(--danger)'}}><i className="fa-solid fa-trash"></i></button>
-                  </div>
-                </div>
-              ))}
-              {eventDocs.length === 0 && <div style={{fontSize: 11, color: 'var(--text3)', fontStyle:'italic', textAlign:'center', padding: '10px 0'}}>No hay archivos adjuntos</div>}
-              
-              <div 
-                className="dropzone"
-                onClick={() => document.getElementById('event-file-upload').click()}
-                style={{marginTop: 5, padding: '10px'}}
-              >
-                <i className={`fa-solid ${uploadingDoc ? 'fa-spinner fa-spin' : 'fa-cloud-arrow-up'}`} style={{fontSize: 16}}></i>
-                <span style={{fontSize: 10}}>{uploadingDoc ? 'Subiendo...' : 'Añadir archivos (PDF, Imágenes...)'}</span>
-                <input 
-                  id="event-file-upload"
-                  type="file" 
-                  multiple
-                  onChange={e=>handleEventFileUpload(e.target.files)} 
-                  style={{display:'none'}} 
-                />
+          {activeTab === 'general' && (
+            <>
+              <div className="form-group">
+                <label>Nombre del Evento</label>
+                <input value={form.nombre} onChange={e=>setForm({...form, nombre: e.target.value})} placeholder="Ej: Boda Juan y María" />
               </div>
-            </div>
-          </div>
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 15, marginBottom: 15}}>
+                <div className="form-group" style={{marginBottom: 0}}>
+                  <label>Fecha</label>
+                  <input type="date" value={form.fecha} onChange={e=>setForm({...form, fecha: e.target.value})} />
+                </div>
+                <div className="form-group" style={{marginBottom: 0}}>
+                  <label>Ubicación</label>
+                  <input value={form.ubicacion} onChange={e=>setForm({...form, ubicacion: e.target.value})} placeholder="Ej: Hotel Hilton" />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Notas / Anotaciones</label>
+                <textarea value={form.notas||''} onChange={e=>setForm({...form, notas: e.target.value})} placeholder="Detalles adicionales..." rows="3"></textarea>
+              </div>
+            </>
+          )}
 
-          <div style={{marginTop: 20, marginBottom: 10, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-            <h4 style={{fontSize: 13, color: 'var(--text2)'}}>ASIGNAR PERSONAL DISPONIBLES</h4>
-            <div style={{width: 180}}>
-              <select value={filterCat} onChange={e=>setFilterCat(e.target.value)} style={{padding: '5px 10px', fontSize: 12, marginBottom: 0}}>
-                <option value="general">Vista General (Asignados)</option>
-                <option value="carga">Carga / Descarga</option>
-                <option value="protocolo">Protocolo</option>
-                <option value="rigger">Riggers</option>
-              </select>
-            </div>
-          </div>
+          {activeTab === 'personal' && (
+            <>
+              <div style={{marginBottom: 10, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <h4 style={{fontSize: 13, color: 'var(--text2)'}}>ASIGNAR PERSONAL</h4>
+                <div style={{width: 180}}>
+                  <select value={filterCat} onChange={e=>setFilterCat(e.target.value)} style={{padding: '5px 10px', fontSize: 12, marginBottom: 0}}>
+                    <option value="general">Vista General (Asignados)</option>
+                    <option value="carga">Carga / Descarga</option>
+                    <option value="protocolo">Protocolo</option>
+                    <option value="rigger">Riggers</option>
+                  </select>
+                </div>
+              </div>
 
-          <div style={{display:'flex', flexDirection:'column', gap: 10, maxHeight: 280, overflowY:'auto', background:'var(--bg3)', padding: 10, borderRadius: 8}}>
-            {employees.filter(e => {
-              if (filterCat === 'general') {
-                // En vista general solo mostramos los que ya están asignados para que sea un resumen
-                return selectedEmps.some(asg => asg.profile_id === e.id);
-              }
-              if (specificUnavail.includes(e.id)) return false;
-              if (filterCat === 'carga' && !e.es_carga) return false;
-              if (filterCat === 'protocolo' && !e.es_protocolo) return false;
-              if (filterCat === 'rigger' && !e.es_rigger) return false;
-              return true;
-            }).map(e => {
-              const isSelected = selectedEmps.some(asg => asg.profile_id === e.id);
-              const asgInfo = selectedEmps.find(asg => asg.profile_id === e.id);
-              return (
-                <div 
-                  key={e.id} 
-                  style={{
-                    padding: '10px', 
-                    borderRadius: 8, 
-                    fontSize: 13, 
-                    background: isSelected ? 'var(--accent-bg)' : 'var(--bg2)',
-                    border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 10
-                  }}
-                >
-                  <div style={{display:'flex', alignItems:'center', justifyContent: 'space-between'}}>
-                    <div style={{display:'flex', alignItems:'center', gap: 10, cursor:'pointer'}} onClick={()=>toggleEmp(e.id)}>
-                      <i className={isSelected ? "fa-solid fa-check-circle" : "fa-regular fa-circle"} style={{color: isSelected ? 'var(--accent2)' : 'var(--text3)'}}></i>
-                      <span style={{fontWeight: 600}}>
-                        {e.nombre} {e.apellidos || ''}
-                      </span>
-                      {isSelected && <span className="cat-badge" style={{background: 'var(--accent)', color:'#fff', marginLeft: 10, fontSize: '9px'}}>{asgInfo.categoria_asignada}</span>}
+              <div style={{display:'flex', flexDirection:'column', gap: 10, maxHeight: 400, overflowY:'auto', background:'var(--bg3)', padding: 10, borderRadius: 8}}>
+                {employees.filter(e => {
+                  if (filterCat === 'general') {
+                    return selectedEmps.some(asg => asg.profile_id === e.id);
+                  }
+                  if (specificUnavail.includes(e.id)) return false;
+                  if (filterCat === 'carga' && !e.es_carga) return false;
+                  if (filterCat === 'protocolo' && !e.es_protocolo) return false;
+                  if (filterCat === 'rigger' && !e.es_rigger) return false;
+                  return true;
+                }).map(e => {
+                  const isSelected = selectedEmps.some(asg => asg.profile_id === e.id);
+                  const asgInfo = selectedEmps.find(asg => asg.profile_id === e.id);
+                  return (
+                    <div 
+                      key={e.id} 
+                      style={{
+                        padding: '10px', 
+                        borderRadius: 8, 
+                        fontSize: 13, 
+                        background: isSelected ? 'var(--accent-bg)' : 'var(--bg2)',
+                        border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 10
+                      }}
+                    >
+                      <div style={{display:'flex', alignItems:'center', justifyContent: 'space-between'}}>
+                        <div style={{display:'flex', alignItems:'center', gap: 10, cursor:'pointer'}} onClick={()=>toggleEmp(e.id)}>
+                          <i className={isSelected ? "fa-solid fa-check-circle" : "fa-regular fa-circle"} style={{color: isSelected ? 'var(--accent2)' : 'var(--text3)'}}></i>
+                          <span style={{fontWeight: 600}}>
+                            {e.nombre} {e.apellidos || ''}
+                          </span>
+                          {isSelected && <span className="cat-badge" style={{background: 'var(--accent)', color:'#fff', marginLeft: 10, fontSize: '9px'}}>{asgInfo.categoria_asignada}</span>}
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <div className="form-group" style={{margin: 0, paddingLeft: 26}}>
+                          <label style={{fontSize: 11, color: 'var(--text2)'}}>Horario asignado</label>
+                          <input 
+                            value={asgInfo.horario || ''} 
+                            onChange={evt=>updateHorario(e.id, evt.target.value)} 
+                            placeholder="Ej: 08:00 a 16:00" 
+                            style={{padding: '6px 10px', fontSize: 12}}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {activeTab === 'docs' && (
+            <div className="form-group">
+              <label>Archivos del Evento</label>
+              <div style={{display:'flex', flexDirection:'column', gap: 8, marginBottom: 12, background:'var(--bg3)', padding: 10, borderRadius: 8}}>
+                {eventDocs.map(d => (
+                  <div key={d.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--bg2)', padding: '8px 12px', borderRadius: 6, fontSize: 12, border: '1px solid var(--border)'}}>
+                    <div style={{display:'flex', alignItems:'center', gap: 8, overflow:'hidden'}}>
+                      <i className={d.nombre_archivo.toLowerCase().endsWith('.pdf') ? "fa-solid fa-file-pdf" : "fa-solid fa-image"} style={{color: d.nombre_archivo.toLowerCase().endsWith('.pdf') ? '#e74c3c' : '#3498db'}}></i>
+                      <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}} title={d.nombre_archivo}>{d.nombre_archivo}</span>
+                    </div>
+                    <div style={{display:'flex', gap: 6}}>
+                      <a href={d.url} target="_blank" className="btn btn-secondary" style={{padding: '4px 8px', fontSize: 11}}><i className="fa-solid fa-eye"></i></a>
+                      <button onClick={()=>deleteEventDoc(d)} className="btn btn-danger" style={{padding: '4px 8px', fontSize: 11, background:'transparent', border:'none', color:'var(--danger)'}}><i className="fa-solid fa-trash"></i></button>
                     </div>
                   </div>
-                  {isSelected && (
-                    <div className="form-group" style={{margin: 0, paddingLeft: 26}}>
-                      <label style={{fontSize: 11, color: 'var(--text2)'}}>Horario asignado</label>
-                      <input 
-                        value={asgInfo.horario || ''} 
-                        onChange={evt=>updateHorario(e.id, evt.target.value)} 
-                        placeholder="Ej: 08:00 a 16:00" 
-                        style={{padding: '6px 10px', fontSize: 12}}
-                      />
-                    </div>
-                  )}
+                ))}
+                
+                <div className="dropzone" onClick={() => document.getElementById('event-file-upload').click()}>
+                  <i className={`fa-solid ${uploadingDoc ? 'fa-spinner fa-spin' : 'fa-cloud-arrow-up'}`} style={{fontSize: 16}}></i>
+                  <span>{uploadingDoc ? 'Subiendo...' : 'Añadir archivos (PDF, Imágenes...)'}</span>
+                  <input id="event-file-upload" type="file" multiple onChange={e=>handleEventFileUpload(e.target.files)} style={{display:'none'}} />
                 </div>
-              );
-            })}
-            {employees.filter(e => {
-              if (filterCat === 'general') return selectedEmps.some(asg => asg.profile_id === e.id);
-              if (specificUnavail.includes(e.id)) return false;
-              if (filterCat === 'carga' && !e.es_carga) return false;
-              if (filterCat === 'protocolo' && !e.es_protocolo) return false;
-              if (filterCat === 'rigger' && !e.es_rigger) return false;
-              return true;
-            }).length === 0 && (
-              <div style={{textAlign:'center', fontSize: 12, color:'var(--text3)', padding: 15}}>
-                {filterCat === 'general' ? 'No hay personal asignado a este evento todavía' : 'No hay operarios disponibles en esta categoría'}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          <div style={{display:'flex', flexWrap:'wrap', gap: 10, marginTop: 25}}>
+          {activeTab === 'fichajes' && (
+            <div style={{display:'flex', flexDirection:'column', gap: 10}}>
+              <h4 style={{fontSize: 13, color:'var(--text2)', marginBottom: 5}}>SEGUIMIENTO DE JORNADA</h4>
+              <div style={{maxHeight: 400, overflowY:'auto', display:'flex', flexDirection:'column', gap: 8}}>
+                {clockings.filter(c => c.event_id === form.id).length === 0 ? (
+                  <div style={{textAlign:'center', padding:20, color:'var(--text3)', fontSize:12, background:'var(--bg3)', borderRadius:8}}>No hay registros de fichajes aún</div>
+                ) : clockings.filter(c => c.event_id === form.id).map(c => {
+                  const emp = employees.find(e => e.id === c.profile_id);
+                  return (
+                    <div key={c.id} style={{padding: 12, background:'var(--bg3)', borderRadius:8, border:'1px solid var(--border)', fontSize:12}}>
+                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+                        <div>
+                          <div style={{fontWeight:600}}>{emp?.nombre} {emp?.apellidos || ''}</div>
+                          <div style={{marginTop:4}}>
+                            <span style={{
+                              padding: '2px 6px', 
+                              borderRadius: 4, 
+                              fontSize: 10, 
+                              background: c.tipo === 'entrada' ? 'var(--success-bg)' : 'var(--danger-bg)',
+                              color: c.tipo === 'entrada' ? 'var(--success)' : 'var(--danger)',
+                              fontWeight: 700,
+                              textTransform: 'uppercase'
+                            }}>{c.tipo}</span>
+                            <span style={{marginLeft: 8, color:'var(--text2)'}}>{new Date(c.fecha_hora).toLocaleString()}</span>
+                          </div>
+                        </div>
+                        <a 
+                          href={`https://www.google.com/maps?q=${c.latitud},${c.longitud}`} 
+                          target="_blank" 
+                          className="btn btn-secondary" 
+                          style={{padding: '5px 8px', fontSize: 10}}
+                          title="Ver en mapa"
+                        >
+                          <i className="fa-solid fa-location-dot"></i> Mapa
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div style={{display:'flex', flexWrap:'wrap', gap: 10, marginTop: 25, borderTop: '1px solid var(--border)', paddingTop: 20}}>
             <button className="btn btn-primary" style={{flex: 1}} onClick={save} disabled={loading || exporting}>
-              <i className="fa-solid fa-floppy-disk"></i> {loading ? 'Guardando...' : 'Guardar Evento'}
+              <i className="fa-solid fa-floppy-disk"></i> {loading ? 'Guardando...' : 'Guardar Cambios'}
             </button>
             
             {form.id && (
-              <button className="btn btn-secondary" style={{flex: 1}} onClick={generateEventFile} disabled={loading || exporting}>
-                <i className={`fa-solid ${exporting ? 'fa-spinner fa-spin' : 'fa-file-zipper'}`}></i> 
-                {exporting ? 'Generando...' : 'Generar Archivo de Evento'}
+              <button className="btn btn-secondary" onClick={generateEventFile} disabled={loading || exporting} title="Descargar ZIP del evento">
+                <i className={`fa-solid ${exporting ? 'fa-spinner fa-spin' : 'fa-file-zipper'}`}></i>
               </button>
             )}
 
             {form.id && (
-              <button className="btn btn-danger" onClick={deleteEvent} disabled={loading || exporting}><i className="fa-solid fa-trash"></i></button>
+              <button className="btn btn-danger" onClick={deleteEvent} disabled={loading || exporting} title="Eliminar evento permanentemente">
+                <i className="fa-solid fa-trash"></i>
+              </button>
             )}
             
-            <button className="btn btn-secondary" onClick={onCancel} disabled={loading || exporting}>Cancelar</button>
+            <button className="btn btn-secondary" onClick={onCancel} disabled={loading || exporting}>Cerrar</button>
           </div>
         </div>
       </div>
@@ -2327,6 +2365,7 @@ function GeneralCalendarView({ employees, toast, setSelectedEmp, sendNotificatio
         <EventModal 
           event={selectedEvent} 
           employees={employees} 
+          clockings={clockings}
           onSave={() => { setShowEventModal(false); load(); }} 
           onCancel={() => setShowEventModal(false)} 
           toast={toast}
@@ -2577,6 +2616,7 @@ function MainApp() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [employees, setEmployees] = useState([]);
   const [events, setEvents] = useState([]);
+  const [clockings, setClockings] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedEmp, setSelectedEmp] = useState(null);
@@ -2708,6 +2748,60 @@ function MainApp() {
     setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 3000);
   };
 
+  const loadClockings = async (profileToUse = profile) => {
+    if (!profileToUse) return;
+    try {
+      if (profileToUse.role === 'admin') {
+        const { data } = await supabaseClient.from('fichajes').select('*').order('fecha_hora', { ascending: false });
+        setClockings(data || []);
+      } else {
+        const { data } = await supabaseClient.from('fichajes').select('*').eq('profile_id', profileToUse.id).order('fecha_hora', { ascending: false });
+        setClockings(data || []);
+      }
+    } catch (err) {
+      console.error('Error loadClockings:', err);
+    }
+  };
+
+  const handleClocking = async (eventId, tipo) => {
+    if (!profile) return;
+    
+    setLoading(true);
+    try {
+      // 1. Obtener GPS
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { 
+          enableHighAccuracy: true, 
+          timeout: 10000, 
+          maximumAge: 0 
+        });
+      });
+
+      const { latitude, longitude } = position.coords;
+
+      // 2. Guardar en Supabase
+      const { error } = await supabaseClient.from('fichajes').insert({
+        profile_id: profile.id,
+        event_id: eventId,
+        tipo: tipo,
+        latitud: latitude,
+        longitud: longitude
+      });
+
+      if (error) throw error;
+
+      toast(`Fichaje de ${tipo} registrado correctamente`, 'success');
+      await loadClockings(profile);
+    } catch (err) {
+      console.error('Error al fichar:', err);
+      let msg = 'Error al obtener la ubicación o guardar el fichaje.';
+      if (err.code === 1) msg = 'Debes permitir el acceso a la ubicación para fichar.';
+      toast(msg, 'danger');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loadProfile = async (uid, manualProfile = null) => {
     if (!uid && !manualProfile) return;
     
@@ -2745,6 +2839,7 @@ function MainApp() {
       }
       // Aseguramos que cargamos todo usando el perfil actual directamente
       loadEvents(currentProfile);
+      loadClockings(currentProfile);
       loadNotifications(currentProfile);
     }
   };
@@ -3057,6 +3152,40 @@ function MainApp() {
                           <div style={{fontSize: 14, fontWeight: 700}}>{formatDate(ev.fecha)}</div>
                           <div className="cat-badge" style={{marginTop: 8, background:'var(--accent)', color:'#fff'}}>{ev.categoria_asignada || 'General'}</div>
                         </div>
+                      </div>
+
+                      {/* SISTEMA DE FICHAJES */}
+                      <div style={{marginTop: 15, paddingTop: 15, borderTop: '1px solid var(--border)', display: 'flex', gap: 10, justifyContent: 'center'}}>
+                        {(() => {
+                          const hasIn = clockings.some(c => c.event_id === ev.id && c.tipo === 'entrada');
+                          const hasOut = clockings.some(c => c.event_id === ev.id && c.tipo === 'salida');
+                          
+                          if (!hasIn) {
+                            return (
+                              <button className="btn btn-primary" onClick={() => handleClocking(ev.id, 'entrada')} disabled={loading} style={{flex: 1}}>
+                                <i className="fa-solid fa-sign-in-alt"></i> Fichar Entrada
+                              </button>
+                            );
+                          } else if (!hasOut) {
+                            return (
+                              <button className="btn btn-danger" onClick={() => handleClocking(ev.id, 'salida')} disabled={loading} style={{flex: 1}}>
+                                <i className="fa-solid fa-sign-out-alt"></i> Fichar Salida
+                              </button>
+                            );
+                          } else {
+                            const inTime = clockings.find(c => c.event_id === ev.id && c.tipo === 'entrada').fecha_hora;
+                            const outTime = clockings.find(c => c.event_id === ev.id && c.tipo === 'salida').fecha_hora;
+                            return (
+                              <div style={{fontSize: 11, color: 'var(--success)', fontWeight: 600, textAlign: 'center', width: '100%'}}>
+                                <i className="fa-solid fa-check-double"></i> Jornada completada<br/>
+                                <span style={{color: 'var(--text3)', fontWeight: 400}}>
+                                  Entrada: {new Date(inTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} | 
+                                  Salida: {new Date(outTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                </span>
+                              </div>
+                            );
+                          }
+                        })()}
                       </div>
                     </div>
                   ))}
